@@ -1,0 +1,9 @@
+*Debug/
+*ipch*
+Release/
+*sdf
+*.ncb
+*.suo
+*.user
+*.pdb
+*.dat
