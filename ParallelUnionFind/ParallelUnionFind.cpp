@@ -4,12 +4,8 @@
 #include "ParallelUnionFindFactory.h"
 
 ParallelUnionFind::ParallelUnionFind(const std::string& spatialConfiguration,
-                                     const std::size_t N,
-                                     int numOfProc,
-                                     int myRank):
-mNumOfProc(numOfProc),
-mMyRank(myRank),
-mParallelUf(ParallelUnionFindFactory::makeParallelUnionFind(spatialConfiguration, N, numOfProc, myRank))
+                                     const DecompositionInfo& info) :
+mParallelUf(ParallelUnionFindFactory::makeParallelUnionFind(spatialConfiguration, info))
 {
 }
 

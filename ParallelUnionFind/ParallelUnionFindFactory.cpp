@@ -10,13 +10,11 @@ ParallelUnionFindFactory::~ParallelUnionFindFactory(void)
 
 ParallelUnionFindImpl* 
 ParallelUnionFindFactory::makeParallelUnionFind(const std::string& spatialConfiguration,
-                                                const std::size_t N,
-                                                int numOfProc,
-                                                int myRank)
+                                                const DecompositionInfo& info)
 {
     if(spatialConfiguration == "2DStripes")
     {
-        return new ParallelUnionFind2DStripes(N, numOfProc, myRank);
+        return new ParallelUnionFind2DStripes(info);
     }
     else
     {

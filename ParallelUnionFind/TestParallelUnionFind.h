@@ -15,6 +15,7 @@ public:
 
 private:
     void test1();
+    DecompositionInfo TestParallelUnionFind::defineDecomposition();
 
 #ifdef _DEBUG
     void forceWindowToStay() const;

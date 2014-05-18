@@ -9,7 +9,8 @@ class ParallelUnionFind
 {
 public:
     ~ParallelUnionFind(void);
-    ParallelUnionFind(const std::string& spatialConfiguration, const std::size_t N, int numOfProc, int myRank);
+    ParallelUnionFind(const std::string& spatialConfiguration, // How the domain decomposition is done.
+                      const DecompositionInfo& info);
 
     // Interface the client must work with.
     void analyze(void);
@@ -23,8 +24,6 @@ private:
 #endif
 
 private:
-    int mNumOfProc;
-    int mMyRank;
     std::tr1::shared_ptr<ParallelUnionFindImpl> mParallelUf; // Use the Bridge to separate the interface from the impl.
 };
 

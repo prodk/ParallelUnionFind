@@ -26,10 +26,21 @@ void TestParallelUnionFind::runTests()
 
 void TestParallelUnionFind::test1()
 {
-    const std::size_t numOfPixels = 256;
-    ParallelUnionFind puf("2DStripes", numOfPixels, mNumOfProc, mMyRank);
+    ParallelUnionFind puf("2DStripes", defineDecomposition());
     puf.analyze();
     puf.printClusterStatistics("fileName.txt");
+}
+
+DecompositionInfo TestParallelUnionFind::defineDecomposition()
+{
+    DecompositionInfo info;
+
+    info.domainWidth = 256;
+    info.domainHeight = 256;
+    info.myRank = mMyRank;
+    info.numOfProc = mNumOfProc;
+
+    return info;
 }
 
 #ifdef _DEBUG

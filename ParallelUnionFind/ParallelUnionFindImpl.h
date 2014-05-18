@@ -10,10 +10,23 @@
 #include <string>
 #include "WeightedUnionFind.h"
 
+struct DecompositionInfo
+{
+    DecompositionInfo() : numOfProc(0), myRank(-1), domainWidth(1), domainHeight(1) {}
+
+    //DecompositionInfo(const DecompositionInfo& di): 
+    // numOfProc(di.numOfProc), myRank(di.myRank), domainWidth(di.domainWidth), domainHeight(di.domainHeight) {}
+
+    int numOfProc;
+    int myRank;
+    std::size_t domainWidth; // Width of the domain per processor, in grid points.
+    std::size_t domainHeight;// Height of the domain per processor, in grid points.
+};
+
 class ParallelUnionFindImpl
 {
 public:
-    ParallelUnionFindImpl(int numOfProc, int myRank);
+    ParallelUnionFindImpl(const DecompositionInfo& info);
     virtual ~ParallelUnionFindImpl(void);
 
     virtual void analyze(void);  // Template method pattern: specify a skeleton for the algorithm.
@@ -26,8 +39,7 @@ protected:
     virtual void performFinalLabelingOfClusters(void) = 0;
 
 protected:
-    int mNumOfProc;
-    int mMyRank;
+    DecompositionInfo mDecompositionInfo;
 };
 
 #endif // PARALLEL_UNION_FIND_IMPL

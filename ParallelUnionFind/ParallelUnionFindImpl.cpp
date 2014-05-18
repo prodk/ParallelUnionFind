@@ -3,8 +3,8 @@
 
 #include "ParallelUnionFindImpl.h"
 
-ParallelUnionFindImpl::ParallelUnionFindImpl(int numOfProc, int myRank):
-mNumOfProc(numOfProc), mMyRank(myRank)
+ParallelUnionFindImpl::ParallelUnionFindImpl(const DecompositionInfo& info) :
+mDecompositionInfo(info)
 {
 }
 
