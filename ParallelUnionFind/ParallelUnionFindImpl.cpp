@@ -3,7 +3,8 @@
 
 #include "ParallelUnionFindImpl.h"
 
-ParallelUnionFindImpl::ParallelUnionFindImpl(void)
+ParallelUnionFindImpl::ParallelUnionFindImpl(int numOfProc, int myRank):
+mNumOfProc(numOfProc), mMyRank(myRank)
 {
 }
 

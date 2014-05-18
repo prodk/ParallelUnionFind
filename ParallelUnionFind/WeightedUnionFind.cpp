@@ -1,7 +1,7 @@
 // WeightedUnionFind.cpp - WeightedUnionFind class implementation.
 #include "WeightedUnionFind.h"
 
-WeightedUnionFind::WeightedUnionFind(int N)
+WeightedUnionFind::WeightedUnionFind(const std::size_t N)
 {
     id.resize(N);
     size.resize(N);
@@ -31,25 +31,25 @@ void WeightedUnionFind::Union(int p, int q)
     int j = Root(q);
 
     // There is no need to add either i or j to the 'roots' set because they must be there already.
-    if(size[i] < size[j])	// Attach the smaller tree to the larger one.
+    if(size[i] < size[j])   // Attach the smaller tree to the larger one.
     {
-        id[i] = j;			// Specify the larger cluster as a root, to keep the logarithmic tree height.
-        size[j] += size[i];	// Increase the larger tree size by the merged amount.
-        roots.erase(i);		// Erase i from the roots, as it is not root any more.
+        id[i] = j;          // Specify the larger cluster as a root, to keep the logarithmic tree height.
+        size[j] += size[i]; // Increase the larger tree size by the merged amount.
+        roots.erase(i);     // Erase i from the roots, as it is not root any more.
     }
     else
     {
         id[j] = i;
         size[i] += size[j];
-        roots.erase(j);		// Erase j from the roots, as it is not root any more.
+        roots.erase(j);     // Erase j from the roots, as it is not root any more.
     }
 }
 
 // Return the root of the tree the vertex i belongs to.
 int WeightedUnionFind::Root(int i)
 {
-    while(i != id[i])	// i is == to id[i] only for roots.
-        i = id[i];		// Get the next id.
+    while(i != id[i])      // i is == to id[i] only for roots.
+        i = id[i];         // Get the next id.
 
     return i;
 }
@@ -59,8 +59,8 @@ void WeightedUnionFind::SetInitialRoot(int idp)
 {
     if(size[idp] == 0)
     {
-        size[idp] = 1;		// Specify the size and the first root.
-        roots.insert(idp);	// Put the root into the set.
+        size[idp] = 1;      // Specify the size and the first root.
+        roots.insert(idp);  // Put the root into the set.
     }
 }
 
@@ -71,11 +71,11 @@ void WeightedUnionFind::Reset(int N)
 
     for(int i = 0; i < N; ++i)
     {
-        id[i] = i;		// Assign the id to the sequence number of the vertex.
-        size[i] = 0;	// No elements in all the trees at the beginning.
+        id[i] = i;      // Assign the id to the sequence number of the vertex.
+        size[i] = 0;    // No elements in all the trees at the beginning.
     }
 
-    roots.clear();		// Removes all the roots from the set.
+    roots.clear();      // Removes all the roots from the set.
 }
 
 //// Prints ids of all the vertices.

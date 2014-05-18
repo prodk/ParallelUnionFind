@@ -18,13 +18,27 @@ TestParallelUnionFind::~TestParallelUnionFind(void)
 
 void TestParallelUnionFind::runTests()
 {
-    std::cout << "Processor " << mMyRank << ": number of processors is "
-        << mNumOfProc << std::endl;
+    test1();
+#ifdef _DEBUG
+    forceWindowToStay();
+#endif
+}
 
-    // DEBUG: force the debug window to remain.
+void TestParallelUnionFind::test1()
+{
+    const std::size_t numOfPixels = 256;
+    ParallelUnionFind puf("2DStripes", numOfPixels, mNumOfProc, mMyRank);
+    puf.analyze();
+    puf.printClusterStatistics("fileName.txt");
+}
+
+#ifdef _DEBUG
+void TestParallelUnionFind::forceWindowToStay() const
+{
     if(0 == mMyRank)
     {
-        std::cin >> mMyRank;
+        int dummy;
+        std::cin >> dummy;
     }
-    // DEBUG end
 }
+#endif

@@ -9,7 +9,8 @@ public:
     ParallelUnionFindFactory(void);
     ~ParallelUnionFindFactory(void);
 
-    static ParallelUnionFindImpl* makeParallelUnionFind(const std::string& spatialConfiguration);
+    static ParallelUnionFindImpl*
+    makeParallelUnionFind(const std::string& spatialConfiguration, const std::size_t N, int numOfProc, int myRank);
 };
 
 #endif // PARALLEL_UNION_FIND_FACTORY

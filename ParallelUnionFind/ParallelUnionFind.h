@@ -8,16 +8,24 @@
 class ParallelUnionFind
 {
 public:
-    ParallelUnionFind(void);
     ~ParallelUnionFind(void);
-    ParallelUnionFind(const std::string& spatialConfiguration);
+    ParallelUnionFind(const std::string& spatialConfiguration, const std::size_t N, int numOfProc, int myRank);
 
+    // Interface the client must work with.
     void analyze(void);
     void printClusterStatistics(const std::string& fileName) const;
     void printClusterSizeHistogram(const std::string& fileName) const;
 
+    // Log messages in the debug mode
+#ifdef _DEBUG
 private:
-    std::tr1::shared_ptr<ParallelUnionFindImpl> mParallelUf;
+    void logMsg(std::ostream& out, const std::string& msg) const;
+#endif
+
+private:
+    int mNumOfProc;
+    int mMyRank;
+    std::tr1::shared_ptr<ParallelUnionFindImpl> mParallelUf; // Use the Bridge to separate the interface from the impl.
 };
 
 #endif // PARALLEL_UNION_FIND

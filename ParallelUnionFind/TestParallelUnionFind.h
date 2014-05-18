@@ -14,6 +14,13 @@ public:
     void runTests();
 
 private:
+    void test1();
+
+#ifdef _DEBUG
+    void forceWindowToStay() const;
+#endif
+
+private:
     int mNumOfProc;
     int mMyRank;
 };

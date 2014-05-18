@@ -13,7 +13,7 @@
 class ParallelUnionFindImpl
 {
 public:
-    ParallelUnionFindImpl(void);
+    ParallelUnionFindImpl(int numOfProc, int myRank);
     virtual ~ParallelUnionFindImpl(void);
 
     virtual void analyze(void);  // Template method pattern: specify a skeleton for the algorithm.
@@ -25,7 +25,9 @@ protected:
     virtual void mergeLabelsAcrossProcessors(void) = 0;
     virtual void performFinalLabelingOfClusters(void) = 0;
 
-    std::tr1::shared_ptr<WeightedUnionFind> wuf;
+protected:
+    int mNumOfProc;
+    int mMyRank;
 };
 
 #endif // PARALLEL_UNION_FIND_IMPL
