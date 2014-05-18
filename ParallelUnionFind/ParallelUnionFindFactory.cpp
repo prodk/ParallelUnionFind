@@ -1,16 +1,20 @@
+// ParallelUnionFindFactory.cpp - implementation of the ParallelUnionFindFactory class.
+
 #include "ParallelUnionFindFactory.h"
 
+//---------------------------------------------------------------------------
 ParallelUnionFindFactory::ParallelUnionFindFactory(void)
 {
 }
 
+//---------------------------------------------------------------------------
 ParallelUnionFindFactory::~ParallelUnionFindFactory(void)
 {
 }
 
-ParallelUnionFindImpl* 
-ParallelUnionFindFactory::makeParallelUnionFind(const std::string& spatialConfiguration,
-                                                const DecompositionInfo& info)
+//---------------------------------------------------------------------------
+ParallelUnionFindImpl* ParallelUnionFindFactory::makeParallelUnionFind(const std::string& spatialConfiguration,
+                                                                       const DecompositionInfo& info)
 {
     if(spatialConfiguration == "2DStripes")
     {

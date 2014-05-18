@@ -12,15 +12,18 @@
 
 struct DecompositionInfo
 {
-    DecompositionInfo() : numOfProc(0), myRank(-1), domainWidth(1), domainHeight(1) {}
-
-    //DecompositionInfo(const DecompositionInfo& di): 
-    // numOfProc(di.numOfProc), myRank(di.myRank), domainWidth(di.domainWidth), domainHeight(di.domainHeight) {}
+    DecompositionInfo() : 
+        numOfProc(0), myRank(-1), domainWidth(1), domainHeight(1), pixels(0), indexFactor(1), pixelValue(1) {}
 
     int numOfProc;
     int myRank;
     std::size_t domainWidth; // Width of the domain per processor, in grid points.
     std::size_t domainHeight;// Height of the domain per processor, in grid points.
+    const int* pixels;       // A pointer to the array of grid points in 1D format.
+    int indexFactor;         // A factor to convert 2D indeces into 1D form. 
+                             // It is necessary, because in the parallel FFTW it is 2, not 1.
+    int pixelValue;          // Value that is used for uniting the points.
+                             // For the contact area we use 1, which corresponds to contact.
 };
 
 class ParallelUnionFindImpl

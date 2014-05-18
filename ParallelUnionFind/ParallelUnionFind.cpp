@@ -3,16 +3,19 @@
 #include "ParallelUnionFind.h"
 #include "ParallelUnionFindFactory.h"
 
+//---------------------------------------------------------------------------
 ParallelUnionFind::ParallelUnionFind(const std::string& spatialConfiguration,
                                      const DecompositionInfo& info) :
 mParallelUf(ParallelUnionFindFactory::makeParallelUnionFind(spatialConfiguration, info))
 {
 }
 
+//---------------------------------------------------------------------------
 ParallelUnionFind::~ParallelUnionFind(void)
 {
 }
 
+//---------------------------------------------------------------------------
 void ParallelUnionFind::analyze(void)
 {
 #ifdef _DEBUG
@@ -22,6 +25,7 @@ void ParallelUnionFind::analyze(void)
     mParallelUf->analyze();
 }
 
+//---------------------------------------------------------------------------
 void ParallelUnionFind::printClusterStatistics(const std::string& fileName) const
 {
 #ifdef _DEBUG
@@ -29,6 +33,7 @@ void ParallelUnionFind::printClusterStatistics(const std::string& fileName) cons
 #endif
 }
 
+//---------------------------------------------------------------------------
 void ParallelUnionFind::printClusterSizeHistogram(const std::string& fileName) const
 {
 #ifdef _DEBUG
@@ -36,6 +41,7 @@ void ParallelUnionFind::printClusterSizeHistogram(const std::string& fileName) c
 #endif
 }
 
+//---------------------------------------------------------------------------
 #ifdef _DEBUG
 void ParallelUnionFind::logMsg(std::ostream& out, const std::string& msg) const
 {

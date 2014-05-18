@@ -1,5 +1,6 @@
 #include "TestParallelUnionFind.h"
 
+//---------------------------------------------------------------------------
 TestParallelUnionFind::TestParallelUnionFind(int argc, char **argv)
 {
     mNumOfProc = -1;
@@ -10,12 +11,14 @@ TestParallelUnionFind::TestParallelUnionFind(int argc, char **argv)
     MPI_Comm_rank (MPI_COMM_WORLD, &mMyRank);
 }
 
+//---------------------------------------------------------------------------
 TestParallelUnionFind::~TestParallelUnionFind(void)
 {
     // Cleanup MPI.
     MPI_Finalize();
 }
 
+//---------------------------------------------------------------------------
 void TestParallelUnionFind::runTests()
 {
     test1();
@@ -24,6 +27,7 @@ void TestParallelUnionFind::runTests()
 #endif
 }
 
+//---------------------------------------------------------------------------
 void TestParallelUnionFind::test1()
 {
     ParallelUnionFind puf("2DStripes", defineDecomposition());
@@ -31,18 +35,21 @@ void TestParallelUnionFind::test1()
     puf.printClusterStatistics("fileName.txt");
 }
 
+//---------------------------------------------------------------------------
 DecompositionInfo TestParallelUnionFind::defineDecomposition()
 {
     DecompositionInfo info;
 
-    info.domainWidth = 256;
-    info.domainHeight = 256;
+    info.domainWidth = 8;
+    info.domainHeight = 8;
     info.myRank = mMyRank;
     info.numOfProc = mNumOfProc;
+    info.pixels = 0;
 
     return info;
 }
 
+//---------------------------------------------------------------------------
 #ifdef _DEBUG
 void TestParallelUnionFind::forceWindowToStay() const
 {
