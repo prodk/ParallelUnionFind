@@ -15,7 +15,9 @@ public:
 
 private:
     void test1();
-    DecompositionInfo TestParallelUnionFind::defineDecomposition();
+    DecompositionInfo defineDecomposition();
+    int readPixels(const std::string& filePictureIn, const DecompositionInfo& info);
+    inline int indexTo1D(int ix, int iy, const DecompositionInfo& info) const;
 
 #ifdef _DEBUG
     void forceWindowToStay() const;
@@ -24,6 +26,13 @@ private:
 private:
     int mNumOfProc;
     int mMyRank;
+    std::vector<int> mPixels;
 };
+
+//---------------------------------------------------------------------------
+inline int TestParallelUnionFind::indexTo1D(int ix, int iy, const DecompositionInfo& info) const
+{
+    return ix*info.indexFactor*info.domainHeight + iy;
+}
 
 #endif // TEST_PARALLEL_UNION_FIND
