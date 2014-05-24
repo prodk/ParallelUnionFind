@@ -30,8 +30,10 @@ private:
 
 private:
     std::size_t mNumOfPixels;
-    std::tr1::shared_ptr<WeightedUnionFind> mWuf;
+    std::tr1::shared_ptr<WeightedUnionFind> mLocalWuf; // UF DS with local (per-processor) labeling.
+    std::tr1::shared_ptr<WeightedUnionFind> mGlobalWuf;// UF DS with global labeling.
     std::vector<int> mPixels;
+    std::vector<int> mGlobalLabels;     // Global labels of 
 };
 
 //---------------------------------------------------------------------------
@@ -45,10 +47,10 @@ inline void ParallelUnionFind2DStripes::mergePixels(int idq, int idp)
 {
     if(mDecompositionInfo.pixelValue == mPixels[idq])
     {
-        mWuf->setInitialRoot(idq);       // Specify the non-zero size (if it was 0) and init root.
-        if( !mWuf->connected(idp, idq) ) // Merge verteces only if they're not yet merged.
+        mLocalWuf->setInitialRoot(idq);       // Specify the non-zero size (if it was 0) and init root.
+        if( !mLocalWuf->connected(idp, idq) ) // Merge verteces only if they're not yet merged.
         {
-            mWuf->makeUnion(idp, idq);
+            mLocalWuf->makeUnion(idp, idq);
         }
     }
 }

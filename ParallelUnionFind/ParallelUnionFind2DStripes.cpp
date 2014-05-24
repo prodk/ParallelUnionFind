@@ -5,7 +5,7 @@
 ParallelUnionFind2DStripes::ParallelUnionFind2DStripes(const DecompositionInfo& info) :
                                 ParallelUnionFindImpl(info),
                                 mNumOfPixels(info.domainWidth * info.domainHeight),
-                                mWuf(new WeightedUnionFind(mNumOfPixels))
+                                mLocalWuf(new WeightedUnionFind(mNumOfPixels))
 {
     if(mDecompositionInfo.numOfProc <= 0)
     {
@@ -47,8 +47,7 @@ void ParallelUnionFind2DStripes::runLocalUnionFind(void)
 {
     if((0 != mDecompositionInfo.pixels) && (mNumOfPixels > 0))
     {
-        // TODO: reconsider this. Might be redundant!
-        mWuf->reset(mNumOfPixels);                // Clear the UF. Necessary if we reuse a Pixels object.
+        mLocalWuf->reset(mNumOfPixels);                // Clear the UF. Necessary if we run UF several times.
 
         const int nx = mDecompositionInfo.domainWidth;
         const int ny = mDecompositionInfo.domainHeight;
@@ -57,14 +56,13 @@ void ParallelUnionFind2DStripes::runLocalUnionFind(void)
         {
             for(int iy = 0; iy < ny; ++iy)
             {
-                // TODO: reconsider boundaries in the parallel version!
                 int neighbX = (ix + 1) % nx;     // Right neighbor with periodic boundaries.
                 int neighbY = (iy + 1) % ny;     // Bottom neighbor with periodic boundaries.
 
                 // Act only if the current pixel contains value.
                 if(mDecompositionInfo.pixelValue == mPixels[indexTo1D(ix, iy)]){
                     int idp = indexTo1D(ix, iy); // Convert 2D pixel coordinates into 1D index.
-                    mWuf->setInitialRoot(idp);   // Set the root and the tree size (if it was 0).
+                    mLocalWuf->setInitialRoot(idp);   // Set the root and the tree size (if it was 0).
 
                     // See whether neighboring (in both directions) pixels should be merged.
                     mergePixels(indexTo1D(neighbX, iy), idp); // Right neighbor.
@@ -78,6 +76,49 @@ void ParallelUnionFind2DStripes::runLocalUnionFind(void)
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::constructGlobalLabeling(void)
 {
+    // Get local consecutive labels of the clusters.
+    const std::map<int, int>& consecutiveLocalIds = mLocalWuf->getConsecutiveRootIds();
+
+    // Convert them to global labels.
+    int myOffset = 0;
+    // At first receive the number of clusters located on the processors with smaller ids.
+    int msgId = 1;
+    MPI_Status mpiStatus;
+    if (0 != mDecompositionInfo.myRank) // Root doesn't receive anything, its offset is 0. The root initiates sending.
+    {
+        MPI_Recv(&myOffset, 1, MPI_INT, mDecompositionInfo.myRank-1, msgId, MPI_COMM_WORLD, &mpiStatus);
+    }
+
+    // Then send to the following proc the offset that includes the # of clusters on the current processor.
+    // Offset for the next neighboring proc (i.e. the number of clusters to add on the next processor).
+    const int numOfMyClusters = consecutiveLocalIds.size();
+    int offsetForTheNextProcessor = myOffset + numOfMyClusters;
+
+    if (mDecompositionInfo.myRank < mDecompositionInfo.numOfProc - 1) // Exclude the last processor from sending.
+    {
+        MPI_Send(&offsetForTheNextProcessor, 1, MPI_INT, mDecompositionInfo.myRank+1, msgId, MPI_COMM_WORLD);
+    }
+
+    // Construct global ids.
+    mGlobalLabels.resize(numOfMyClusters);
+    std::map<int, int>::const_iterator iter;
+    int count = 0;
+    for (iter = consecutiveLocalIds.begin(); iter != consecutiveLocalIds.end(); ++iter)
+    {
+        mGlobalLabels[count] = iter->second + myOffset;
+        ++count;
+    }
+
+#ifdef _DEBUG
+    // Print ids.
+    std::cout << " Loc \t LCsc \t Global" << std::endl;
+    int i = 0;
+    for (iter = consecutiveLocalIds.begin(); iter != consecutiveLocalIds.end(); ++iter)
+    {
+        std::cout << iter->first << "\t" << iter->second << "\t" << mGlobalLabels[i] << std::endl;
+        ++i;
+    }
+#endif
 }
 
 //---------------------------------------------------------------------------
@@ -98,13 +139,13 @@ void ParallelUnionFind2DStripes::printClusterSizes(const std::string& fileName) 
         std::fstream fileStream(fileName);
         if (fileStream.good())
         {
-            mWuf->printClusterSizes(fileStream);
+            mLocalWuf->printClusterSizes(fileStream);
             fileStream.close();
         }
     }
     else
     {
-        mWuf->printClusterSizes(std::cout);
+        mLocalWuf->printClusterSizes(std::cout);
     }
 }
 
@@ -117,21 +158,21 @@ void ParallelUnionFind2DStripes::printClusterStatistics(const std::string& fileN
         if (fileStream.good())
         {
             fileStream << std::endl << "Pixel value used: " << mDecompositionInfo.pixelValue << std::endl;
-            mWuf->printClusterStatistics(fileStream);
+            mLocalWuf->printClusterStatistics(fileStream);
             fileStream.close();
         }
     }
     else
     {
         std::cout << std::endl << "Pixel value used: " << mDecompositionInfo.pixelValue << std::endl;
-        mWuf->printClusterStatistics(std::cout);
+        mLocalWuf->printClusterStatistics(std::cout);
     }
 }
 
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::printClusterSizeHistogram(const int bins, const std::string& fileName) const
 {
-    mWuf->printClusterSizeHistogram(bins, fileName);
+    mLocalWuf->printClusterSizeHistogram(bins, fileName);
 }
 
 //---------------------------------------------------------------------------

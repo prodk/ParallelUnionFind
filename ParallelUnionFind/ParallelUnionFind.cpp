@@ -36,6 +36,16 @@ void ParallelUnionFind::printClusterStatistics(const std::string& fileName) cons
 }
 
 //---------------------------------------------------------------------------
+void ParallelUnionFind::printClusterSizes(const std::string& fileName) const
+{
+#ifdef _DEBUG
+    logMsg(std::cout, "PUF::printClusterSizes()");
+#endif
+
+    mParallelUf->printClusterSizes(fileName);
+}
+
+//---------------------------------------------------------------------------
 void ParallelUnionFind::printClusterSizeHistogram(const int bins, const std::string& fileName) const
 {
 #ifdef _DEBUG

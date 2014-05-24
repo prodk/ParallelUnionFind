@@ -6,6 +6,7 @@
 #include <iostream>
 #include <vector>
 #include <set>
+#include <map>
 #include <fstream>
 
 class WeightedUnionFind
@@ -14,14 +15,16 @@ public:
     WeightedUnionFind(const std::size_t N);
     ~WeightedUnionFind(void);
 
-    // Interface the client is restricted to use.
+    // Interface for the client.
     bool connected(int p, int q);        // True if both verteces are in the same cluster.
     void makeUnion(int p, int q);        // Put the verteces to the same cluster.
     void setInitialRoot(int id);         // Set the initial root of the vertex.
     void reset(int N);                   // Set the union find to a state as if it had been newly created.
 
+    // Change local labeling of the clusters such that it is consecutive.
+    const std::map<int, int>& getConsecutiveRootIds();
+
     // Output the results.
-    //void printId(std::ostream out);      // Prints ids of all the vertices.
     void printClusterSizes(std::ostream& out);     // Prints sizes of clusters that correspond to tree vertices.
     void printClusterStatistics(std::ostream& out);// Cluster statistics.
 
@@ -37,6 +40,7 @@ private:
     std::vector<int> mId;          // Ids of the verteces.
     std::vector<int> mSize;        // Number of vertices in each tree (i. e. cluster).
     std::set<int> mRoots;          // A set of ids of the roots of the trees.
+    std::map<int, int> mConsecutiveRoots; // Relabeled cluster indeces.
     int mMinClusterSize;
     int mMaxClusterSize;
 };

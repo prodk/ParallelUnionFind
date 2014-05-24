@@ -15,6 +15,7 @@ public:
     // Interface the client must work with.
     void analyze(void);
     void printClusterStatistics(const std::string& fileName) const;
+    void printClusterSizes(const std::string& fileName) const;
     void printClusterSizeHistogram(const int bins, const std::string& fileName) const;
     void setPixelValue(const int value);
 

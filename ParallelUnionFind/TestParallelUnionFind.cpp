@@ -32,7 +32,6 @@ void TestParallelUnionFind::runTests()
 //---------------------------------------------------------------------------
 void TestParallelUnionFind::analyze(DecompositionInfo& info, const std::string fileIn)
 {
-    //TODO: use readPixelsInParallel here
     //if(readPixels(mPixels, fileIn, info) >=0)
     if(readPixelsInParallel(fileIn, info) >=0)
     {
@@ -43,15 +42,17 @@ void TestParallelUnionFind::analyze(DecompositionInfo& info, const std::string f
         // Analyze contact (pixel value 1 by default).
         puf.analyze();
         puf.printClusterStatistics("");
-        int bins = 1000;
-        puf.printClusterSizeHistogram(bins, "cont"+fileIn);
+        puf.printClusterSizes("");
+        //int bins = 1000;
+        //puf.printClusterSizeHistogram(bins, "cont"+fileIn);
 
         // Analyze non-contact.
         const int pixelvalue = 0;
         puf.setPixelValue(pixelvalue);
         puf.analyze();
         puf.printClusterStatistics("");
-        puf.printClusterSizeHistogram(bins, "ncont"+fileIn);
+        puf.printClusterSizes("");
+        //puf.printClusterSizeHistogram(bins, "ncont"+fileIn);
     }
 }
 

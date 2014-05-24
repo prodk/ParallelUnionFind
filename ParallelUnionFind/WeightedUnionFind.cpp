@@ -2,7 +2,8 @@
 #include "WeightedUnionFind.h"
 
 //---------------------------------------------------------------------------
-WeightedUnionFind::WeightedUnionFind(const std::size_t N)
+WeightedUnionFind::WeightedUnionFind(const std::size_t N) :
+mRoots(), mConsecutiveRoots()
 {
     mId.resize(N);
     mSize.resize(N);
@@ -85,10 +86,28 @@ void WeightedUnionFind::reset(int N)
     }
 
     mRoots.clear();      // Removes all the roots from the set.
+    mConsecutiveRoots.clear(); // Clear consecutive roots.
 
     // Important when WUF is reused: reset cluster sizes.
     mMinClusterSize = -1;
     mMaxClusterSize = -1;
+}
+
+const std::map<int, int>& WeightedUnionFind::getConsecutiveRootIds()
+{
+    // TODO: reconsider, may be redundant!
+    mConsecutiveRoots.clear();
+
+    const std::size_t numOfClusters = mRoots.size();
+    int count = 0;
+    std::set<int>::iterator iter;
+    for(iter = mRoots.begin(); iter != mRoots.end(); ++iter)
+    {
+        mConsecutiveRoots[*iter] = count; // Root id is a key, consecutive id is a value.
+        ++count;
+    }
+
+    return mConsecutiveRoots;
 }
 
 //---------------------------------------------------------------------------
@@ -98,11 +117,11 @@ void WeightedUnionFind::printClusterSizes(std::ostream& out)
     // Print root of the trees and the corresponding tree sizes.
     if(mRoots.size() > 0)
     {
-        out << "Root \t Size" << std::endl;
+        out << "Loc \t Cns \t Size" << std::endl;
         std::set<int>::iterator iter;
-        for(iter = mRoots.begin(); iter != mRoots.end(); iter++)
+        for(iter = mRoots.begin(); iter != mRoots.end(); ++iter)
         {
-            out << *iter << " \t " << mSize[*iter] << std::endl;
+            out << *iter << " \t " << mConsecutiveRoots[*iter] << " \t " << mSize[*iter] << std::endl;
         }
     }
 }
@@ -153,7 +172,7 @@ void WeightedUnionFind::getMinMaxClusterSize(int *min, int *max)
     iter = mRoots.begin();
     int minCluster = mSize[*iter];
     int maxCluster = mSize[*iter];
-    for(; iter != mRoots.end(); iter++)
+    for(; iter != mRoots.end(); ++iter)
     {
         if(minCluster > mSize[*iter])
         {
@@ -180,7 +199,7 @@ void WeightedUnionFind::buldAndPrintSizeHistogram(const int bins, const std::str
     {
         // Build the histogram.
         std::set<int>::iterator iter;
-        for(iter = mRoots.begin(); iter != mRoots.end(); iter++)  // Loop over the clusters.
+        for(iter = mRoots.begin(); iter != mRoots.end(); ++iter)  // Loop over the clusters.
         {
             if(mSize[*iter] > 0)
             {
