@@ -13,7 +13,7 @@
 struct DecompositionInfo
 {
     DecompositionInfo() : 
-        numOfProc(0), myRank(-1), domainWidth(1), domainHeight(1), pixels(0), indexFactor(1), pixelValue(1) {}
+    numOfProc(0), myRank(-1), domainWidth(1), domainHeight(1), pixels(0), indexFactor(1), pixelValue(1) {}
 
     int numOfProc;
     int myRank;
@@ -34,8 +34,17 @@ public:
 
     virtual void analyze(void);  // Template method pattern: specify a skeleton for the algorithm.
 
-protected:
+    // Output functions, obligatory to override.
+    virtual void printClusterSizes(const std::string& fileName) const = 0;
+    virtual void printClusterStatistics(const std::string& fileName) const = 0;
+    virtual void printClusterSizeHistogram(const int bins, const std::string& fileName) const = 0;
+
+    // Helper interface functions.
+    virtual void setPixelValue(const int value) = 0;
+
+private:
     // These are the fixed steps of the algorithm called from the analyze().
+    // Private functions can be overriden by children, but can't be invoked. They're invoked only in the base class.
     virtual void runLocalUnionFind(void) = 0;
     virtual void constructGlobalLabeling(void) = 0;
     virtual void mergeLabelsAcrossProcessors(void) = 0;

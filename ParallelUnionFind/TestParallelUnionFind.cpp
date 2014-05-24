@@ -19,34 +19,116 @@ TestParallelUnionFind::~TestParallelUnionFind(void)
 //---------------------------------------------------------------------------
 void TestParallelUnionFind::runTests()
 {
-    test1();
+    test256();
+    //test1k();
+    //test4k();
+    //test8k();
 #ifdef _DEBUG
     forceWindowToStay();
 #endif
 }
 
 //---------------------------------------------------------------------------
-void TestParallelUnionFind::test1()
+void TestParallelUnionFind::analyze(DecompositionInfo& info, const std::string fileIn)
 {
-    DecompositionInfo info = defineDecomposition();
-
-    if(readPixels("picture_H08_4a_256_p_0_1.dat", info) >=0 )
+    if(readPixels(fileIn, info) >=0)
     {
         // Specify pixels just read from the file.
         info.pixels = &mPixels[0];
         ParallelUnionFind puf("2DStripes", info);
+
+        // Analyze contact (pixel value 1 by default).
         puf.analyze();
-        puf.printClusterStatistics("fileName.txt");
+        puf.printClusterStatistics("");
+        int bins = 1000;
+        puf.printClusterSizeHistogram(bins, "cont"+fileIn);
+
+        // Analyze non-contact.
+        const int pixelvalue = 0;
+        puf.setPixelValue(pixelvalue);
+        puf.analyze();
+        puf.printClusterStatistics("");
+        puf.printClusterSizeHistogram(bins, "ncont"+fileIn);
     }
 }
 
 //---------------------------------------------------------------------------
-DecompositionInfo TestParallelUnionFind::defineDecomposition()
+void TestParallelUnionFind::test256()
+{
+    DecompositionInfo info = defineDecomposition256();
+    analyze(info, "picture_H08_4a_256_p_0_1.dat");
+}
+
+//---------------------------------------------------------------------------
+void TestParallelUnionFind::test1k()
+{
+    DecompositionInfo info = defineDecomposition1k();
+    analyze(info, "picture_H08_4a_1k_p_0_1.dat");
+}
+
+//---------------------------------------------------------------------------
+void TestParallelUnionFind::test4k()
+{
+    DecompositionInfo info = defineDecomposition4k();
+    analyze(info, "picture_H03_2a_4k_p_0_035.dat");
+}
+
+//---------------------------------------------------------------------------
+void TestParallelUnionFind::test8k()
+{
+    DecompositionInfo info = defineDecomposition8k();
+    analyze(info, "picture_H08_4a_8k_p_0_1.dat");
+}
+
+//---------------------------------------------------------------------------
+DecompositionInfo TestParallelUnionFind::defineDecomposition256()
 {
     DecompositionInfo info;
 
     info.domainWidth = 256;
     info.domainHeight = 256;
+    info.myRank = mMyRank;
+    info.numOfProc = mNumOfProc;
+    info.pixels = 0;
+
+    return info;
+}
+
+//---------------------------------------------------------------------------
+DecompositionInfo TestParallelUnionFind::defineDecomposition1k()
+{
+    DecompositionInfo info;
+
+    info.domainWidth = 1024;
+    info.domainHeight = 1024;
+    info.myRank = mMyRank;
+    info.numOfProc = mNumOfProc;
+    info.pixels = 0;
+
+    return info;
+}
+
+//---------------------------------------------------------------------------
+DecompositionInfo TestParallelUnionFind::defineDecomposition4k()
+{
+    DecompositionInfo info;
+
+    info.domainWidth = 4096;
+    info.domainHeight = 4096;
+    info.myRank = mMyRank;
+    info.numOfProc = mNumOfProc;
+    info.pixels = 0;
+
+    return info;
+}
+
+//---------------------------------------------------------------------------
+DecompositionInfo TestParallelUnionFind::defineDecomposition8k()
+{
+    DecompositionInfo info;
+
+    info.domainWidth = 8192;
+    info.domainHeight = 8192;
     info.myRank = mMyRank;
     info.numOfProc = mNumOfProc;
     info.pixels = 0;
@@ -67,7 +149,7 @@ int TestParallelUnionFind::readPixels(const std::string& filePictureIn, const De
     std::ifstream fileIn(filePictureIn);
     // Read pixels from the file.
     std::string line;
-    int lineCount = 0;
+    std::size_t lineCount = 0;
     while(std::getline(fileIn, line))
     {
         if(lineCount >= info.domainWidth)

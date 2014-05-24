@@ -3,8 +3,7 @@
 
 #include "parallelunionfindimpl.h"
 
-class ParallelUnionFind2DStripes :
-    public ParallelUnionFindImpl
+class ParallelUnionFind2DStripes : public ParallelUnionFindImpl
 {
 public:
     ParallelUnionFind2DStripes(const DecompositionInfo& info);
@@ -16,15 +15,23 @@ public:
     void mergeLabelsAcrossProcessors(void);
     void performFinalLabelingOfClusters(void);
 
-private:
-    std::size_t mNumOfPixels;
-    std::tr1::shared_ptr<WeightedUnionFind> mWuf;
-    std::vector<int> mPixels;
+    // Overriden output.
+    void printClusterSizes(const std::string& fileName) const;
+    void printClusterStatistics(const std::string& fileName) const;
+    void printClusterSizeHistogram(const int bins, const std::string& fileName) const;
+
+    // Overriden helper interface functions. Virual functions CANNOT be inlined!
+    void setPixelValue(const int value);
 
 private:
     void copyPixels();
     inline int indexTo1D(int ix, int iy) const;
     inline void mergePixels(int idq, int idp);
+
+private:
+    std::size_t mNumOfPixels;
+    std::tr1::shared_ptr<WeightedUnionFind> mWuf;
+    std::vector<int> mPixels;
 };
 
 //---------------------------------------------------------------------------

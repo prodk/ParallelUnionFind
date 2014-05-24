@@ -15,9 +15,10 @@ ParallelUnionFind2DStripes::ParallelUnionFind2DStripes(const DecompositionInfo& 
     else
     {
         std::cout << "Processor " << mDecompositionInfo.myRank << " of " << mDecompositionInfo.numOfProc << std::endl;
-        std::cout << "PUF of type 2DStripes created, width " 
-            << mDecompositionInfo.domainWidth << " height " << mDecompositionInfo.domainHeight << std::endl;
+        std::cout << "PUF of type 2DStripes created" << std::endl;
+        std::cout << "width " << mDecompositionInfo.domainWidth << " height " << mDecompositionInfo.domainHeight << std::endl;
 
+        std::cout << "Copying pixels to the internal array ..." << std::endl << std::endl;
         copyPixels();
     }
 }
@@ -46,15 +47,17 @@ void ParallelUnionFind2DStripes::runLocalUnionFind(void)
 {
     if((0 != mDecompositionInfo.pixels) && (mNumOfPixels > 0))
     {
+        // TODO: reconsider this. Might be redundant!
         mWuf->reset(mNumOfPixels);                // Clear the UF. Necessary if we reuse a Pixels object.
 
-        const std::size_t nx = mDecompositionInfo.domainWidth;
-        const std::size_t ny = mDecompositionInfo.domainHeight;
+        const int nx = mDecompositionInfo.domainWidth;
+        const int ny = mDecompositionInfo.domainHeight;
 
-        for(int ix = 0; ix < nx; ++ix)           // Loop through the pixels.
+        for(int ix = 0; ix < nx; ++ix)            // Loop through the pixels.
         {
             for(int iy = 0; iy < ny; ++iy)
             {
+                // TODO: reconsider boundaries in the parallel version!
                 int neighbX = (ix + 1) % nx;     // Right neighbor with periodic boundaries.
                 int neighbY = (iy + 1) % ny;     // Bottom neighbor with periodic boundaries.
 
@@ -85,4 +88,54 @@ void ParallelUnionFind2DStripes::mergeLabelsAcrossProcessors(void)
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::performFinalLabelingOfClusters(void)
 {
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::printClusterSizes(const std::string& fileName) const
+{
+    if ( (fileName.length() > 0) && ("" != fileName) )
+    {
+        std::fstream fileStream(fileName);
+        if (fileStream.good())
+        {
+            mWuf->printClusterSizes(fileStream);
+            fileStream.close();
+        }
+    }
+    else
+    {
+        mWuf->printClusterSizes(std::cout);
+    }
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::printClusterStatistics(const std::string& fileName) const
+{
+    if ( (fileName.length() > 0) && ("" != fileName) )
+    {
+        std::fstream fileStream(fileName);
+        if (fileStream.good())
+        {
+            fileStream << std::endl << "Pixel value used: " << mDecompositionInfo.pixelValue << std::endl;
+            mWuf->printClusterStatistics(fileStream);
+            fileStream.close();
+        }
+    }
+    else
+    {
+        std::cout << std::endl << "Pixel value used: " << mDecompositionInfo.pixelValue << std::endl;
+        mWuf->printClusterStatistics(std::cout);
+    }
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::printClusterSizeHistogram(const int bins, const std::string& fileName) const
+{
+    mWuf->printClusterSizeHistogram(bins, fileName);
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::setPixelValue(const int value)
+{
+    mDecompositionInfo.pixelValue = value;
 }

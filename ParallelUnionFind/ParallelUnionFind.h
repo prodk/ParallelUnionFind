@@ -15,9 +15,10 @@ public:
     // Interface the client must work with.
     void analyze(void);
     void printClusterStatistics(const std::string& fileName) const;
-    void printClusterSizeHistogram(const std::string& fileName) const;
+    void printClusterSizeHistogram(const int bins, const std::string& fileName) const;
+    void setPixelValue(const int value);
 
-    // Log messages in the debug mode
+    // Log messages in the debug mode.
 #ifdef _DEBUG
 private:
     void logMsg(std::ostream& out, const std::string& msg) const;

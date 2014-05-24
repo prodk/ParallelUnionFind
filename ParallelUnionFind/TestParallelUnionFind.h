@@ -14,8 +14,16 @@ public:
     void runTests();
 
 private:
-    void test1();
-    DecompositionInfo defineDecomposition();
+    void analyze(DecompositionInfo& info, const std::string fileIn);
+    void test256();
+    void test1k();
+    void test4k();
+    void test8k();
+    DecompositionInfo defineDecomposition256();
+    DecompositionInfo defineDecomposition1k();
+    DecompositionInfo defineDecomposition4k();
+    DecompositionInfo defineDecomposition8k();
+
     int readPixels(const std::string& filePictureIn, const DecompositionInfo& info);
     inline int indexTo1D(int ix, int iy, const DecompositionInfo& info) const;
 

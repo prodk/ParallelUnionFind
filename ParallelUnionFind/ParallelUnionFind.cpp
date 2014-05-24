@@ -31,14 +31,27 @@ void ParallelUnionFind::printClusterStatistics(const std::string& fileName) cons
 #ifdef _DEBUG
     logMsg(std::cout, "PUF::printClusterStatistics()");
 #endif
+
+    mParallelUf->printClusterStatistics(fileName);
 }
 
 //---------------------------------------------------------------------------
-void ParallelUnionFind::printClusterSizeHistogram(const std::string& fileName) const
+void ParallelUnionFind::printClusterSizeHistogram(const int bins, const std::string& fileName) const
 {
 #ifdef _DEBUG
     logMsg(std::cout, "PUF::printClusterSizeHistogram()");
 #endif
+
+    mParallelUf->printClusterSizeHistogram(bins, fileName);
+}
+
+void ParallelUnionFind::setPixelValue(const int value)
+{
+#ifdef _DEBUG
+    logMsg(std::cout, "PUF::setPixelValue()");
+#endif
+
+    mParallelUf->setPixelValue(value);
 }
 
 //---------------------------------------------------------------------------
