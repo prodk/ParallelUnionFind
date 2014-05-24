@@ -19,7 +19,8 @@ TestParallelUnionFind::~TestParallelUnionFind(void)
 //---------------------------------------------------------------------------
 void TestParallelUnionFind::runTests()
 {
-    test256();
+    test8();
+    //test256();
     //test1k();
     //test4k();
     //test8k();
@@ -31,7 +32,9 @@ void TestParallelUnionFind::runTests()
 //---------------------------------------------------------------------------
 void TestParallelUnionFind::analyze(DecompositionInfo& info, const std::string fileIn)
 {
-    if(readPixels(fileIn, info) >=0)
+    //TODO: use readPixelsInParallel here
+    //if(readPixels(mPixels, fileIn, info) >=0)
+    if(readPixelsInParallel(fileIn, info) >=0)
     {
         // Specify pixels just read from the file.
         info.pixels = &mPixels[0];
@@ -50,6 +53,13 @@ void TestParallelUnionFind::analyze(DecompositionInfo& info, const std::string f
         puf.printClusterStatistics("");
         puf.printClusterSizeHistogram(bins, "ncont"+fileIn);
     }
+}
+
+//---------------------------------------------------------------------------
+void TestParallelUnionFind::test8()
+{
+    DecompositionInfo info = defineDecomposition8();
+    analyze(info, "8by8.dat");
 }
 
 //---------------------------------------------------------------------------
@@ -78,6 +88,20 @@ void TestParallelUnionFind::test8k()
 {
     DecompositionInfo info = defineDecomposition8k();
     analyze(info, "picture_H08_4a_8k_p_0_1.dat");
+}
+
+//---------------------------------------------------------------------------
+DecompositionInfo TestParallelUnionFind::defineDecomposition8()
+{
+    DecompositionInfo info;
+
+    info.domainWidth = 8/mNumOfProc;
+    info.domainHeight = 8;
+    info.myRank = mMyRank;
+    info.numOfProc = mNumOfProc;
+    info.pixels = 0;
+
+    return info;
 }
 
 //---------------------------------------------------------------------------
@@ -137,49 +161,89 @@ DecompositionInfo TestParallelUnionFind::defineDecomposition8k()
 }
 
 //---------------------------------------------------------------------------
-int TestParallelUnionFind::readPixels(const std::string& filePictureIn, const DecompositionInfo& info)
+int TestParallelUnionFind::readPixels(std::vector<int>& pixels,
+                                      const std::string& filePictureIn,
+                                      const DecompositionInfo& info)
 {
     std::cout << std::endl;
     std::cout << "________________" << std::endl;
     std::cout << "Reading    " << filePictureIn << std::endl;
     std::cout << "Creating " << info.domainWidth << " by " << info.domainHeight << " picture" << std::endl;
 
+    std::ifstream fileIn(filePictureIn);
+    if (fileIn.good())
+    {
+        // Read pixels from the file.
+        std::string line;
+        std::size_t lineCount = 0;
+        while(std::getline(fileIn, line))
+        {
+            if(lineCount >= mNumOfProc*info.domainWidth)
+            {
+                std::cerr << std::endl;
+                std::cerr << "Error: Too many lines in the picture file!" << std::endl;
+                std::cerr << std::endl;
+                return -1;
+            }
+            if(line.size() != info.domainHeight)
+            {
+                std::cerr << std::endl;
+                std::cerr << "Error: Number of columns in the picture file is wrong!" << std::endl;
+                std::cerr << std::endl;
+                return -1;
+            }
+
+            // Copy pixels of the current line.
+            char tmp[2] = "0";
+            for(std::size_t i = 0; i < line.size(); ++i)
+            {
+                tmp[0] = line[i];
+                pixels[indexTo1D(i, lineCount, info)] = std::atoi(tmp);
+            }
+
+            ++lineCount;
+        } // End while eof.
+
+        fileIn.close();
+    }
+    return 0;
+}
+
+//---------------------------------------------------------------------------
+int TestParallelUnionFind::readPixelsInParallel(const std::string& filePictureIn, const DecompositionInfo& info)
+{
+    // Set the size of the chunk of data residing on the current processor.
     mPixels.resize(info.domainWidth*info.domainHeight);
 
-    std::ifstream fileIn(filePictureIn);
-    // Read pixels from the file.
-    std::string line;
-    std::size_t lineCount = 0;
-    while(std::getline(fileIn, line))
-    {
-        if(lineCount >= info.domainWidth)
-        {
-            std::cerr << std::endl;
-            std::cerr << "Error: Too many lines in the picture file!" << std::endl;
-            std::cerr << std::endl;
-            return -1;
-        }
-        if(line.size() != info.domainHeight)
-        {
-            std::cerr << std::endl;
-            std::cerr << "Error: Number of columns in the picture file is wrong!" << std::endl;
-            std::cerr << std::endl;
-            return -1;
-        }
+    // For testing purposes only: read the whole file and then choose the data that the current proc needs.
+    std::vector<int> allPixels;
+    allPixels.resize(info.domainHeight*info.domainWidth*mNumOfProc);
 
-        // Copy pixels of the current line.
-        char tmp[2] = "0";
-        for(std::size_t i = 0; i < line.size(); ++i)
-        {
-            tmp[0] = line[i];
-            mPixels[indexTo1D(lineCount, i, info)] = std::atoi(tmp);
-        }
+    readPixels(allPixels, filePictureIn, info);
 
-        ++lineCount;
-    } // End while eof.
+    copyRelevantData(allPixels, info);
 
-    fileIn.close();
+    // Print the part of the picture residing on the current processor.
+    printPartOfThePicture(info);
+
     return 0;
+}
+
+void TestParallelUnionFind::copyRelevantData(const std::vector<int>& allPixels, const DecompositionInfo& info)
+{
+    // Choose the data that corresponds to the current processor.
+    const int nx = info.domainWidth;
+    const int ny = info.domainHeight;
+    for(int ix = 0; ix < nx; ++ix)            // Loop through the pixels.
+    {
+        for(int iy = 0; iy < ny; ++iy)
+        {
+            int globalX = ix + nx*mMyRank;
+            int globalIndex = indexTo1D(globalX, iy, info);
+            int localIndex = indexTo1D(ix, iy, info);
+            mPixels[localIndex] = allPixels[globalIndex];
+        }
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -190,6 +254,30 @@ void TestParallelUnionFind::forceWindowToStay() const
     {
         int dummy;
         std::cin >> dummy;
+    }
+}
+
+void TestParallelUnionFind::printPartOfThePicture(const DecompositionInfo& info) const
+{
+    std::stringstream fileName;
+    fileName << "proc_" << mMyRank << "_picture.dat";
+    //std::string name = fileName.str();
+    std::ofstream outFile(fileName.str());
+
+    if (outFile.good())
+    {
+        const int nx = info.domainWidth;
+        const int ny = info.domainHeight;
+
+        for(int iy = 0; iy < ny; ++iy)            // Loop through the pixels.
+        {
+            for(int ix = 0; ix < nx; ++ix)
+            {
+                outFile << mPixels[indexTo1D(ix, iy, info)];
+            }
+            outFile << std::endl;
+        }
+        outFile.close();
     }
 }
 #endif

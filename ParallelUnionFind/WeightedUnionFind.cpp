@@ -85,6 +85,8 @@ void WeightedUnionFind::reset(int N)
     }
 
     mRoots.clear();      // Removes all the roots from the set.
+
+    // Important when WUF is reused: reset cluster sizes.
     mMinClusterSize = -1;
     mMaxClusterSize = -1;
 }
