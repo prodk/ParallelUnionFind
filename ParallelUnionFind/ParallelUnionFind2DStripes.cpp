@@ -5,6 +5,7 @@
 ParallelUnionFind2DStripes::ParallelUnionFind2DStripes(const DecompositionInfo& info) :
                                 ParallelUnionFindImpl(info),
                                 mNumOfPixels(info.domainWidth * info.domainHeight),
+                                mNumOfGlobalPixels((info.domainWidth + 2) * info.domainHeight),
                                 mLocalWuf(new WeightedUnionFind(mNumOfPixels))
 {
     if(mDecompositionInfo.numOfProc <= 0)
@@ -100,23 +101,20 @@ void ParallelUnionFind2DStripes::constructGlobalLabeling(void)
     }
 
     // Construct global ids.
-    mGlobalLabels.resize(numOfMyClusters);
+    //mGlobalLabels.resize(numOfMyClusters);
     std::map<int, int>::const_iterator iter;
-    int count = 0;
     for (iter = consecutiveLocalIds.begin(); iter != consecutiveLocalIds.end(); ++iter)
     {
-        mGlobalLabels[count] = iter->second + myOffset;
-        ++count;
+        // Non-consecutive local root is a key, a consecutive global root is a value.
+        mGlobalLabels[iter->first] = iter->second + myOffset;
     }
 
 #ifdef _DEBUG
     // Print ids.
     std::cout << " Loc \t LCsc \t Global" << std::endl;
-    int i = 0;
     for (iter = consecutiveLocalIds.begin(); iter != consecutiveLocalIds.end(); ++iter)
     {
-        std::cout << iter->first << "\t" << iter->second << "\t" << mGlobalLabels[i] << std::endl;
-        ++i;
+        std::cout << iter->first << "\t" << iter->second << "\t" << mGlobalLabels[iter->first] << std::endl;
     }
 #endif
 }
@@ -124,6 +122,30 @@ void ParallelUnionFind2DStripes::constructGlobalLabeling(void)
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::mergeLabelsAcrossProcessors(void)
 {
+    // An array to set the data of the globalWuf. It contains to additional columns of data.
+    mGlobalPixels.resize(mNumOfGlobalPixels);
+
+    // Copy the data from the localWuf to the array. Leave the first and the last columns empty.
+    if(0 != mDecompositionInfo.pixels)
+    {
+        for(std::size_t i = 0u; i < mNumOfPixels; ++i)
+        {
+            mGlobalPixels[i + mDecompositionInfo.domainWidth].pixelValue = mPixels[i];
+            const int pixelRoot = mLocalWuf->getPixelRoot(i);
+            mGlobalPixels[i + mDecompositionInfo.domainWidth].globalClusterId = mGlobalLabels[pixelRoot];
+            mGlobalPixels[i + mDecompositionInfo.domainWidth].sizeOfCluster = mLocalWuf->getClusterSize(pixelRoot);
+        }
+    }
+
+    // Copy the Merge data of the left stripe and send it to the left neighbor
+
+    // Receive the stripe from the left neighbor.
+
+    // Copy the Merge data of the right stripe and send it to the right neighbor
+
+    // Receive the stripe from the right neighbor.
+
+    // Initialize the global UF with the data.
 }
 
 //---------------------------------------------------------------------------

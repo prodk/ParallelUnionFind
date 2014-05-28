@@ -52,7 +52,7 @@ void WeightedUnionFind::makeUnion(int p, int q)
 
 //---------------------------------------------------------------------------
 // Return the root of the tree the vertex i belongs to.
-int WeightedUnionFind::root(int i)
+int WeightedUnionFind::root(int i) const
 {
     while(i != mId[i])      // i is == to id[i] only for roots.
     {

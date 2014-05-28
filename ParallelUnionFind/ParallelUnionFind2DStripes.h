@@ -30,16 +30,18 @@ private:
 
 private:
     std::size_t mNumOfPixels;
+    std::size_t mNumOfGlobalPixels;
     std::tr1::shared_ptr<WeightedUnionFind> mLocalWuf; // UF DS with local (per-processor) labeling.
     std::tr1::shared_ptr<WeightedUnionFind> mGlobalWuf;// UF DS with global labeling.
     std::vector<int> mPixels;
-    std::vector<int> mGlobalLabels;     // Global labels of 
+    std::map<int, int> mGlobalLabels; // Non-consecutive local root is a key, a consecutive global root is a value.
+    std::vector<Pixel> mGlobalPixels;
 };
 
 //---------------------------------------------------------------------------
 inline int ParallelUnionFind2DStripes::indexTo1D(int ix, int iy) const
 {
-    return ix * mDecompositionInfo.indexFactor * mDecompositionInfo.domainHeight + iy;
+    return ix * mDecompositionInfo.domainHeight + iy;
 }
 
 //---------------------------------------------------------------------------

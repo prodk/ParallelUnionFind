@@ -46,7 +46,7 @@ private:
 //---------------------------------------------------------------------------
 inline int TestParallelUnionFind::indexTo1D(int ix, int iy, const DecompositionInfo& info) const
 {
-    return ix*info.indexFactor*info.domainHeight + iy;
+    return ix*info.domainHeight + iy;
 }
 
 #endif // TEST_PARALLEL_UNION_FIND

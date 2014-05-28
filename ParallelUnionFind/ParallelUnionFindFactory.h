@@ -1,7 +1,10 @@
 #ifndef PARALLEL_UNION_FIND_FACTORY
 #define PARALLEL_UNION_FIND_FACTORY
 
-#include "ParallelUnionFind2DStripes.h"
+#include <string>
+
+struct DecompositionInfo;
+class ParallelUnionFindImpl;
 
 class ParallelUnionFindFactory
 {

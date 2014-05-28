@@ -28,11 +28,24 @@ public:
     void printClusterSizes(std::ostream& out);     // Prints sizes of clusters that correspond to tree vertices.
     void printClusterStatistics(std::ostream& out);// Cluster statistics.
 
+    void setPixelRoot(int pixelId, int rootId);
+    void setClusterSize(int rootId, int clusterSize);
+
+    int getPixelRoot(const int id) const
+    {
+        return root(id);
+    }
+
+    int getClusterSize(const int rootId) const
+    {
+        return mSize[rootId];
+    }
+
     // Output cluster histogram to a file.
     int printClusterSizeHistogram(const int bins, const std::string& fileOut);
 
 private:
-    int root(int i);               // Find the root of the vertex i.
+    int root(int i) const;               // Find the root of the vertex i.
     void getMinMaxClusterSize(int *min, int *max);  // Define clusters with the minimum and maximum sizes.
     void buldAndPrintSizeHistogram(const int bins, const std::string& fileOut) const;
 
