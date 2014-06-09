@@ -2,6 +2,7 @@
 #define PARALLEL_UNION_FIND_2D_STRIPES
 
 #include "parallelunionfindimpl.h"
+#include <sstream>
 
 class ParallelUnionFind2DStripes : public ParallelUnionFindImpl
 {
@@ -29,14 +30,17 @@ private:
     inline int indexTo1D(int ix, int iy) const;
     inline void mergePixels(int idq, int idp);
 
+    // Implementation helpers.
+    void printLocalExtendedPicture(const DecompositionInfo& info) const;
+
 private:
     std::size_t mNumOfPixels;
     std::size_t mNumOfGlobalPixels;
     std::tr1::shared_ptr<WeightedUnionFind> mLocalWuf; // UF DS with local (per-processor) labeling.
     std::tr1::shared_ptr<WeightedUnionFind> mGlobalWuf;// UF DS with global labeling.
-    std::vector<int> mPixels;
+    std::vector<int> mPixels;         // Local mesh points.
     std::map<int, int> mGlobalLabels; // Non-consecutive local root is a key, a consecutive global root is a value.
-    std::vector<Pixel> mGlobalPixels;
+    std::vector<Pixel> mGlobalPixels; // Extended pixels.
 };
 
 //---------------------------------------------------------------------------
