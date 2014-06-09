@@ -3,8 +3,7 @@
 
 #include <string>
 
-struct DecompositionInfo;
-class ParallelUnionFindImpl;
+#include "ParallelUnionFind2DStripes.h"
 
 class ParallelUnionFindFactory
 {

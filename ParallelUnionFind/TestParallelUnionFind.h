@@ -26,11 +26,12 @@ private:
     DecompositionInfo defineDecomposition1k();
     DecompositionInfo defineDecomposition4k();
     DecompositionInfo defineDecomposition8k();
+    void fillInDecompositionInfo(DecompositionInfo& info, const int size);
 
     int readPixels(std::vector<int>& pixels, const std::string& filePictureIn, const DecompositionInfo& info);
     int readPixelsInParallel(const std::string& filePictureIn, const DecompositionInfo& info);
     void copyRelevantData(const std::vector<int>& allPixels, const DecompositionInfo& info);
-    inline int indexTo1D(int ix, int iy, const DecompositionInfo& info) const;
+    int indexTo1D(int ix, int iy, const DecompositionInfo& info) const;
 
 #ifdef _DEBUG
     void forceWindowToStay() const;
@@ -47,6 +48,24 @@ private:
 inline int TestParallelUnionFind::indexTo1D(int ix, int iy, const DecompositionInfo& info) const
 {
     return ix*info.domainHeight + iy;
+}
+
+//---------------------------------------------------------------------------
+inline void TestParallelUnionFind::fillInDecompositionInfo(DecompositionInfo& info, const int size)
+{
+    if (mNumOfProc > 0)
+    {
+        info.domainWidth = size/mNumOfProc;
+    }
+    else
+    {
+        std::cout << "We need at least 1 processor to perform the task!" << std::endl;
+        return;
+    }
+    info.domainHeight = size;
+    info.myRank = mMyRank;
+    info.numOfProc = mNumOfProc;
+    info.pixels = 0;
 }
 
 #endif // TEST_PARALLEL_UNION_FIND

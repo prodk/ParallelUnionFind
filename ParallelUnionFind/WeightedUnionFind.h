@@ -45,9 +45,9 @@ public:
     int printClusterSizeHistogram(const int bins, const std::string& fileOut);
 
 private:
-    int root(int i) const;               // Find the root of the vertex i.
+    int root(int i) const;                          // Find the root of the vertex i.
     void getMinMaxClusterSize(int *min, int *max);  // Define clusters with the minimum and maximum sizes.
-    void buldAndPrintSizeHistogram(const int bins, const std::string& fileOut) const;
+    void buildAndPrintSizeHistogram(const int bins, const std::string& fileOut) const;
 
 private:
     std::vector<int> mId;          // Ids of the verteces.

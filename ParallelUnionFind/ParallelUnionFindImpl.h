@@ -12,7 +12,7 @@
 
 struct DecompositionInfo
 {
-    DecompositionInfo() : 
+    DecompositionInfo() :
     numOfProc(0), myRank(-1), domainWidth(1), domainHeight(1), pixels(0), pixelValue(1) {}
 
     int numOfProc;
@@ -21,7 +21,7 @@ struct DecompositionInfo
     std::size_t domainHeight;// Height of the domain per processor, in grid points.
     const int* pixels;       // A pointer to the array of grid points in 1D format.
     int pixelValue;          // Value that is used for uniting the points.
-                             // For the contact area we use 1, which corresponds to contact.
+                             // 1 corresponds to contact, 0 to non-contact.
 };
 
 struct Pixel
@@ -31,6 +31,7 @@ struct Pixel
     int sizeOfCluster;
 };
 
+// Records a single merge.
 struct Merge
 {
     int p;
@@ -46,7 +47,7 @@ public:
     ParallelUnionFindImpl(const DecompositionInfo& info);
     virtual ~ParallelUnionFindImpl(void);
 
-    virtual void analyze(void);  // Template method pattern: specify a skeleton for the algorithm.
+    void analyze(void);         // Template method pattern: specify a skeleton for the algorithm.
 
     // Output functions, obligatory to override.
     virtual void printClusterSizes(const std::string& fileName) const = 0;
@@ -58,7 +59,7 @@ public:
 
 private:
     // These are the fixed steps of the algorithm called from the analyze().
-    // Private functions can be overriden by children, but can't be invoked. They're invoked only in the base class.
+    // Private functions can be overriden by children, but can't be explicitly invoked. They're called only in the base class.
     virtual void runLocalUnionFind(void) = 0;
     virtual void constructGlobalLabeling(void) = 0;
     virtual void mergeLabelsAcrossProcessors(void) = 0;

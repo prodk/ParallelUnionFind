@@ -8,18 +8,16 @@ ParallelUnionFind2DStripes::ParallelUnionFind2DStripes(const DecompositionInfo& 
                                 mNumOfGlobalPixels((info.domainWidth + 2) * info.domainHeight),
                                 mLocalWuf(new WeightedUnionFind(mNumOfPixels))
 {
-    if(mDecompositionInfo.numOfProc <= 0)
+    if (mDecompositionInfo.numOfProc <= 0)
     {
         std::cerr << "0 number of processors!" << std::endl;
         std::cerr << "Check whether the MPI has been initialized!" << std::endl;
     }
     else
     {
-        std::cout << "Processor " << mDecompositionInfo.myRank << " of " << mDecompositionInfo.numOfProc << std::endl;
-        std::cout << "PUF of type 2DStripes created" << std::endl;
-        std::cout << "width " << mDecompositionInfo.domainWidth << " height " << mDecompositionInfo.domainHeight << std::endl;
+        std::cout << "Processor " << mDecompositionInfo.myRank << " of " << mDecompositionInfo.numOfProc << ": PUF of type 2DStripes created.";
+        std::cout << " Width " << mDecompositionInfo.domainWidth << " height " << mDecompositionInfo.domainHeight << "." << std::endl;
 
-        std::cout << "Copying pixels to the internal array ..." << std::endl << std::endl;
         copyPixels();
     }
 }
@@ -34,9 +32,9 @@ void ParallelUnionFind2DStripes::copyPixels()
 {
     mPixels.resize(mNumOfPixels);
 
-    if(0 != mDecompositionInfo.pixels)
+    if (0 != mDecompositionInfo.pixels)
     {
-        for(std::size_t i = 0u; i < mNumOfPixels; ++i)
+        for (std::size_t i = 0u; i < mNumOfPixels; ++i)
         {
             mPixels[i] = mDecompositionInfo.pixels[i];
         }
@@ -46,22 +44,23 @@ void ParallelUnionFind2DStripes::copyPixels()
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::runLocalUnionFind(void)
 {
-    if((0 != mDecompositionInfo.pixels) && (mNumOfPixels > 0))
+    if ((0 != mDecompositionInfo.pixels) && (mNumOfPixels > 0))
     {
-        mLocalWuf->reset(mNumOfPixels);                // Clear the UF. Necessary if we run UF several times.
+        mLocalWuf->reset(mNumOfPixels);                // Clear the UF. Necessary if we reuse the same UF.
 
         const int nx = mDecompositionInfo.domainWidth;
         const int ny = mDecompositionInfo.domainHeight;
 
-        for(int ix = 0; ix < nx; ++ix)            // Loop through the pixels.
+        for (int ix = 0; ix < nx; ++ix)                // Loop through the pixels.
         {
-            for(int iy = 0; iy < ny; ++iy)
+            for (int iy = 0; iy < ny; ++iy)
             {
                 int neighbX = (ix + 1) % nx;     // Right neighbor with periodic boundaries.
                 int neighbY = (iy + 1) % ny;     // Bottom neighbor with periodic boundaries.
 
                 // Act only if the current pixel contains value.
-                if(mDecompositionInfo.pixelValue == mPixels[indexTo1D(ix, iy)]){
+                if (mDecompositionInfo.pixelValue == mPixels[indexTo1D(ix, iy)])
+                {
                     int idp = indexTo1D(ix, iy); // Convert 2D pixel coordinates into 1D index.
                     mLocalWuf->setInitialRoot(idp);   // Set the root and the tree size (if it was 0).
 
@@ -101,7 +100,6 @@ void ParallelUnionFind2DStripes::constructGlobalLabeling(void)
     }
 
     // Construct global ids.
-    //mGlobalLabels.resize(numOfMyClusters);
     std::map<int, int>::const_iterator iter;
     for (iter = consecutiveLocalIds.begin(); iter != consecutiveLocalIds.end(); ++iter)
     {
@@ -111,7 +109,7 @@ void ParallelUnionFind2DStripes::constructGlobalLabeling(void)
 
 #ifdef _DEBUG
     // Print ids.
-    std::cout << " Loc \t LCsc \t Global" << std::endl;
+    std::cout << "Loc \t LCsc \t Global" << std::endl;
     for (iter = consecutiveLocalIds.begin(); iter != consecutiveLocalIds.end(); ++iter)
     {
         std::cout << iter->first << "\t" << iter->second << "\t" << mGlobalLabels[iter->first] << std::endl;
@@ -126,9 +124,9 @@ void ParallelUnionFind2DStripes::mergeLabelsAcrossProcessors(void)
     mGlobalPixels.resize(mNumOfGlobalPixels);
 
     // Copy the data from the localWuf to the array. Leave the first and the last columns empty.
-    if(0 != mDecompositionInfo.pixels)
+    if (0 != mDecompositionInfo.pixels)
     {
-        for(std::size_t i = 0u; i < mNumOfPixels; ++i)
+        for (std::size_t i = 0u; i < mNumOfPixels; ++i)
         {
             mGlobalPixels[i + mDecompositionInfo.domainWidth].pixelValue = mPixels[i];
             const int pixelRoot = mLocalWuf->getPixelRoot(i);
@@ -156,7 +154,7 @@ void ParallelUnionFind2DStripes::performFinalLabelingOfClusters(void)
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::printClusterSizes(const std::string& fileName) const
 {
-    if ( (fileName.length() > 0) && ("" != fileName) )
+    if ((fileName.length() > 0) && ("" != fileName))
     {
         std::fstream fileStream(fileName);
         if (fileStream.good())
@@ -174,19 +172,19 @@ void ParallelUnionFind2DStripes::printClusterSizes(const std::string& fileName) 
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::printClusterStatistics(const std::string& fileName) const
 {
-    if ( (fileName.length() > 0) && ("" != fileName) )
+    if ((fileName.length() > 0) && ("" != fileName))
     {
         std::fstream fileStream(fileName);
         if (fileStream.good())
         {
-            fileStream << std::endl << "Pixel value used: " << mDecompositionInfo.pixelValue << std::endl;
+            fileStream << "Pixel value used: " << mDecompositionInfo.pixelValue << std::endl;
             mLocalWuf->printClusterStatistics(fileStream);
             fileStream.close();
         }
     }
     else
     {
-        std::cout << std::endl << "Pixel value used: " << mDecompositionInfo.pixelValue << std::endl;
+        std::cout << "Pixel value used: " << mDecompositionInfo.pixelValue << std::endl;
         mLocalWuf->printClusterStatistics(std::cout);
     }
 }
