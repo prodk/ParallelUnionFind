@@ -50,10 +50,11 @@ private:
     void buildAndPrintSizeHistogram(const int bins, const std::string& fileOut) const;
 
 private:
-    std::vector<int> mId;          // Ids of the verteces.
+    static const int defaultInt;
+    std::vector<int> mId;          // Ids of the vertices.
     std::vector<int> mSize;        // Number of vertices in each tree (i. e. cluster).
     std::set<int> mRoots;          // A set of ids of the roots of the trees.
-    std::map<int, int> mConsecutiveRoots; // Relabeled cluster indeces.
+    std::map<int, int> mConsecutiveRoots; // Relabeled cluster indices.
     int mMinClusterSize;
     int mMaxClusterSize;
 };

@@ -46,6 +46,7 @@ void ParallelUnionFind2DStripes::copyPixels()
 }
 
 //---------------------------------------------------------------------------
+// Stage 1.
 void ParallelUnionFind2DStripes::runLocalUnionFind(void)
 {
     if ((0 != mDecompositionInfo.pixels) && (mNumOfPixels > 0))
@@ -55,23 +56,25 @@ void ParallelUnionFind2DStripes::runLocalUnionFind(void)
         const int nx = mDecompositionInfo.domainWidth;
         const int ny = mDecompositionInfo.domainHeight;
 
-        for (int ix = 0; ix < nx; ++ix)                // Loop through the pixels.
+        for (int ix = 0; ix < nx; ++ix)                // Loop through the pixels, columns fastest.
         {
             for (int iy = 0; iy < ny; ++iy)
             {
-                // TODO: reconsider periodic boundaries here!
-                int neighbX = (ix + 1) % nx;          // Right neighbor with periodic boundaries.
-                int neighbY = (iy + 1) % ny;          // Bottom neighbor with periodic boundaries.
-
-                // Act only if the current pixel contains value.
+                // Act only if the current pixel contains the desired value.
                 if (mDecompositionInfo.pixelValue == mPixels[indexTo1D(ix, iy)])
                 {
                     int idp = indexTo1D(ix, iy);      // Convert 2D pixel coordinates into 1D index.
                     mLocalWuf->setInitialRoot(idp);   // Set the root and the tree size (if it was 0).
 
                     // See whether neighboring (in both directions) pixels should be merged.
-                    mergePixels(indexTo1D(neighbX, iy), idp); // Right neighbor.
-                    mergePixels(indexTo1D(ix, neighbY), idp); // Bottom neighbor.
+                    const int neighbX = getNeighborNonPeriodicBC(ix, nx);   // Right neighbor without periodic boundaries.
+                    if (neighbX >= 0)
+                    {
+                        mergePixels(indexTo1D(neighbX, iy), idp);
+                    }
+
+                    const int neighbY = getNeighborPeriodicBC(iy, ny);      // Bottom neighbor with periodic boundaries.
+                    mergePixels(indexTo1D(ix, neighbY), idp);
                 }
             } // End for iy.
         } // End for ix.
@@ -79,50 +82,31 @@ void ParallelUnionFind2DStripes::runLocalUnionFind(void)
 }
 
 //---------------------------------------------------------------------------
+// Stage 2.
 void ParallelUnionFind2DStripes::constructGlobalLabeling(void)
 {
     // Get local consecutive labels of the clusters.
     const std::map<int, int>& consecutiveLocalIds = mLocalWuf->getConsecutiveRootIds();
 
-    //----------------
-    // TODO: put this part of code into a separate function.
+    // Get the offset from the procs with smaller ids.
+    const int numOfClustersOnSmallerProcIds = receiveNumberOfClustersFromPreviousProcs();
 
-    // Convert them to global labels.
-    int myOffset = 0;
-    // At first receive the number of clusters located on the processors with smaller ids.
-    const int msgId = 1;
-    MPI_Status mpiStatus;
-    if (0 != mDecompositionInfo.myRank) // Root doesn't receive anything, its offset is 0. The root initiates sending.
-    {
-        const int receiveFromProc = mDecompositionInfo.myRank-1;
-        MPI_Recv(&myOffset, 1, MPI_INT, receiveFromProc, msgId, MPI_COMM_WORLD, &mpiStatus);
-    }
-
-    // Then send to the following proc the offset that includes the # of clusters on the current processor.
-    // Offset for the next neighboring proc (i.e. the number of clusters to add on the next processor).
+    // Send to the following proc the offset that includes the # of clusters on the current processor.
     const int numOfMyClusters = consecutiveLocalIds.size();
-    int offsetForTheNextProcessor = myOffset + numOfMyClusters;
+    sendTotalClustersToNextProcs(numOfClustersOnSmallerProcIds, numOfMyClusters);
 
-    if (mDecompositionInfo.myRank < mDecompositionInfo.numOfProc - 1) // Exclude the last processor from sending.
-    {
-        const int sendToProc = mDecompositionInfo.myRank+1;
-        MPI_Send(&offsetForTheNextProcessor, 1, MPI_INT, sendToProc, msgId, MPI_COMM_WORLD);
-    }
-
-    // Construct global ids.
+    // Construct global consecutive ids of the clusters.
     std::map<int, int>::const_iterator iter;
     for (iter = consecutiveLocalIds.begin(); iter != consecutiveLocalIds.end(); ++iter)
     {
-        // Non-consecutive local root is a key, a consecutive global root is a value.
-        mGlobalLabels[iter->first] = iter->second + myOffset;
+        mGlobalLabels[iter->first] =                     // Non-consecutive local root is a key (i.e. iter->first).
+            // iter->second is a local consecutive id of the cluster.
+            iter->second + numOfClustersOnSmallerProcIds;// Consecutive global root is a value stored in the map.
     }
-
-    // TODO END.
-    //----------------
 
 #ifdef _DEBUG
     // Print ids.
-    std::cout << "Loc \t LCsc \t Global" << std::endl;
+    std::cout << "Loc  LocConsec GlobalConsec" << std::endl;
     for (iter = consecutiveLocalIds.begin(); iter != consecutiveLocalIds.end(); ++iter)
     {
         std::cout << iter->first << "\t" << iter->second << "\t" << mGlobalLabels[iter->first] << std::endl;
@@ -131,6 +115,39 @@ void ParallelUnionFind2DStripes::constructGlobalLabeling(void)
 }
 
 //---------------------------------------------------------------------------
+int ParallelUnionFind2DStripes::receiveNumberOfClustersFromPreviousProcs() const
+{
+    int numOfClusters = 0;
+
+    // Receive the number of clusters located on the processors with ids smaller than ours.
+    const int msgId = 1;
+    MPI_Status mpiStatus;
+
+    // Root doesn't receive anything, its offset is 0. The root initiates sending.
+    if (0 != mDecompositionInfo.myRank)
+    {
+        const int receiveFromProc = mDecompositionInfo.myRank-1;
+        MPI_Recv(&numOfClusters, 1, MPI_INT, receiveFromProc, msgId, MPI_COMM_WORLD, &mpiStatus);
+    }
+
+    return numOfClusters;
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::sendTotalClustersToNextProcs(const int numOfClustersOnSmallerProcIds, const int numOfMyClusters) const
+{
+    int offsetForTheNextProcessor = numOfClustersOnSmallerProcIds + numOfMyClusters;
+
+    const int msgId = 1;
+    if (mDecompositionInfo.myRank < mDecompositionInfo.numOfProc - 1) // Exclude the last processor from sending.
+    {
+        const int sendToProc = mDecompositionInfo.myRank+1;
+        MPI_Send(&offsetForTheNextProcessor, 1, MPI_INT, sendToProc, msgId, MPI_COMM_WORLD);
+    }
+}
+
+//---------------------------------------------------------------------------
+// Stage 3.
 void ParallelUnionFind2DStripes::mergeLabelsAcrossProcessors(void)
 {
     //----------------
@@ -288,6 +305,7 @@ void ParallelUnionFind2DStripes::setPixelValue(const int value)
     mDecompositionInfo.pixelValue = value;
 }
 
+//---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::printLocalExtendedPicture(const DecompositionInfo& info) const
 {
     std::stringstream fileName;

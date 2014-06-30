@@ -4,6 +4,9 @@
 #include <fstream>
 
 //---------------------------------------------------------------------------
+// Avoid magic numbers.
+const int WeightedUnionFind::defaultInt = -1;
+//---------------------------------------------------------------------------
 WeightedUnionFind::WeightedUnionFind(const std::size_t N)
     : mRoots()
     , mConsecutiveRoots()
@@ -17,8 +20,8 @@ WeightedUnionFind::WeightedUnionFind(const std::size_t N)
         mSize[i] = 0;    // No elements in all the trees at the beginning.
     }
 
-    mMinClusterSize = -1;
-    mMaxClusterSize = -1;
+    mMinClusterSize = defaultInt;
+    mMaxClusterSize = defaultInt;
 }
 
 //---------------------------------------------------------------------------
@@ -71,8 +74,8 @@ void WeightedUnionFind::setInitialRoot(int idp)
 {
     if (0 == mSize[idp])
     {
-        mSize[idp] = 1;      // Specify the size and the first root.
-        mRoots.insert(idp);  // Put the root into the set.
+        mSize[idp] = 1;        // Specify the size and the first root.
+        mRoots.insert(idp);    // Put the root into the set.
     }
 }
 
@@ -84,16 +87,16 @@ void WeightedUnionFind::reset(int N)
 
     for (int i = 0; i < N; ++i)
     {
-        mId[i] = i;      // Assign the id to the sequence number of the vertex.
-        mSize[i] = 0;    // No elements in all the trees at the beginning.
+        mId[i] = i;            // Assign the id to the sequence number of the vertex.
+        mSize[i] = 0;          // No elements in all the trees at the beginning.
     }
 
-    mRoots.clear();      // Removes all the roots from the set.
+    mRoots.clear();            // Remove all the roots from the set.
     mConsecutiveRoots.clear(); // Clear consecutive roots.
 
     // Important when WUF is reused: reset cluster sizes.
-    mMinClusterSize = -1;
-    mMaxClusterSize = -1;
+    mMinClusterSize = defaultInt;
+    mMaxClusterSize = defaultInt;
 }
 
 //---------------------------------------------------------------------------
@@ -120,7 +123,7 @@ void WeightedUnionFind::printClusterSizes(std::ostream& out)
     // Print root of the trees and the corresponding tree sizes.
     if (mRoots.size() > 0)
     {
-        out << "Loc \t Cns \t Size" << std::endl;
+        out << "Loc  LocConsec  Size" << std::endl;
         std::set<int>::iterator iter;
         for (iter = mRoots.begin(); iter != mRoots.end(); ++iter)
         {
@@ -152,7 +155,7 @@ int WeightedUnionFind::printClusterSizeHistogram(const int bins, const std::stri
     if (0 == mRoots.size())
     {
         std::cout << "No clusters found!" << std::endl;
-        return -1;
+        return defaultInt;
     }
 
     // Get sizes of the smallest/largest clusters.
@@ -193,7 +196,7 @@ void WeightedUnionFind::getMinMaxClusterSize(int *min, int *max)
 void WeightedUnionFind::buildAndPrintSizeHistogram(const int bins, const std::string &fileOut) const
 {
     // Width of the bin.
-    double delta = static_cast<double>(mMaxClusterSize - mMinClusterSize)/(bins - 1);
+    const double delta = static_cast<double>(mMaxClusterSize - mMinClusterSize)/(bins - 1);
     std::vector<int> sizeHistogram;
     sizeHistogram.resize(bins);
 
