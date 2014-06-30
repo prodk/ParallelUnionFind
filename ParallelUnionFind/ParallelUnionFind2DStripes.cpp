@@ -34,13 +34,13 @@ ParallelUnionFind2DStripes::~ParallelUnionFind2DStripes(void)
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::copyPixels()
 {
-    mPixels.resize(mNumOfPixels);
+    mLocalPixels.resize(mNumOfPixels);
 
     if (0 != mDecompositionInfo.pixels)
     {
         for (std::size_t i = 0u; i < mNumOfPixels; ++i)
         {
-            mPixels[i] = mDecompositionInfo.pixels[i];
+            mLocalPixels[i] = mDecompositionInfo.pixels[i];
         }
     }
 }
@@ -61,7 +61,7 @@ void ParallelUnionFind2DStripes::runLocalUnionFind(void)
             for (int iy = 0; iy < ny; ++iy)
             {
                 // Act only if the current pixel contains the desired value.
-                if (mDecompositionInfo.pixelValue == mPixels[indexTo1D(ix, iy)])
+                if (mDecompositionInfo.pixelValue == mLocalPixels[indexTo1D(ix, iy)])
                 {
                     int idp = indexTo1D(ix, iy);      // Convert 2D pixel coordinates into 1D index.
                     mLocalWuf->setInitialRoot(idp);   // Set the root and the tree size (if it was 0).
@@ -150,12 +150,38 @@ void ParallelUnionFind2DStripes::sendTotalClustersToNextProcs(const int numOfClu
 // Stage 3.
 void ParallelUnionFind2DStripes::mergeLabelsAcrossProcessors(void)
 {
-    //----------------
-    //TODO: split this function into several smaller ones.
-
     // An array to set the data of the globalWuf. It contains 2 additional columns of data.
     mGlobalPixels.resize(mNumOfGlobalPixels);
 
+    // Copy the data from the localWuf to the array. Leave the first and the last columns empty.
+    setLocalPartOfGloblaPixels();
+
+    // Copy the Pixel data of the left column and send it to the right column of the left neighbor.
+    copyLeftColumnAndSendToLeftNeighbor();
+
+
+
+#ifdef _DEBUG
+    printLocalExtendedPicture(mDecompositionInfo);
+#endif
+
+    // Receive the stripe from the left neighbor.
+
+    // Copy the Pixel data of the right stripe and send it to the right neighbor
+    // Now for the right column mirrorred actions.
+    copyRightColumnAndSendToRightNeighbor();
+
+    // Receive the stripe from the right neighbor.
+
+    // Initialize the global UF with the local and received data.
+
+    // Run UF on the global UF and record the merges that happen.
+
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::setLocalPartOfGloblaPixels(void)
+{
     // Copy the data from the localWuf to the array. Leave the first and the last columns empty.
     if (0 != mDecompositionInfo.pixels)
     {
@@ -166,7 +192,7 @@ void ParallelUnionFind2DStripes::mergeLabelsAcrossProcessors(void)
                 const int pixelGlobalId = indexTo1D(ix + 1, iy);
                 const int pixelLocalId = indexTo1D(ix, iy);
 
-                mGlobalPixels[pixelGlobalId].pixelValue = mPixels[pixelLocalId];
+                mGlobalPixels[pixelGlobalId].pixelValue = mLocalPixels[pixelLocalId];
 
                 const int pixelRoot = mLocalWuf->getPixelRoot(pixelLocalId);
                 mGlobalPixels[pixelGlobalId].globalClusterId = mGlobalLabels[pixelRoot];
@@ -174,13 +200,16 @@ void ParallelUnionFind2DStripes::mergeLabelsAcrossProcessors(void)
             }
         }
     }
+}
 
-    // Copy the Merge data of the left stripe and send it to the left neighbor.
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::copyLeftColumnAndSendToLeftNeighbor(void)
+{
     std::vector<int> stripeToSend(mDecompositionInfo.domainHeight);
     std::vector<int> stripeToReceive(mDecompositionInfo.domainHeight);
     for (std::size_t iy = 0; iy < mDecompositionInfo.domainHeight; ++iy)
     {
-        stripeToSend[iy] = mPixels[iy];
+        stripeToSend[iy] = mLocalPixels[iy];
 
        /* const int pixelRoot = mLocalWuf->getPixelRoot(iy);
         stripe[iy].globalClusterId = mGlobalLabels[pixelRoot];
@@ -233,24 +262,15 @@ void ParallelUnionFind2DStripes::mergeLabelsAcrossProcessors(void)
         stripe[iy].globalClusterId = mGlobalLabels[pixelRoot];
         stripe[iy].sizeOfCluster = mLocalWuf->getClusterSize(pixelRoot);*/
     }
-
-#ifdef _DEBUG
-    printLocalExtendedPicture(mDecompositionInfo);
-#endif
-
-    // Receive the stripe from the left neighbor.
-
-    // Copy the Merge data of the right stripe and send it to the right neighbor
-
-    // Receive the stripe from the right neighbor.
-
-    // Initialize the global UF with the data.
-
-    // TODO END.
-    //----------------
 }
 
 //---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::copyRightColumnAndSendToRightNeighbor(void)
+{
+}
+
+//---------------------------------------------------------------------------
+// Stage 4.
 void ParallelUnionFind2DStripes::performFinalLabelingOfClusters(void)
 {
 }
