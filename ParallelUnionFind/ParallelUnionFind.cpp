@@ -2,6 +2,7 @@
 
 #include "ParallelUnionFind.h"
 #include "ParallelUnionFindFactory.h"
+#include <iostream>
 
 //---------------------------------------------------------------------------
 ParallelUnionFind::ParallelUnionFind(const std::string& spatialConfiguration,

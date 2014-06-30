@@ -1,9 +1,14 @@
+// ParallelUnionFind2DStripes.h - declaration of the class ParallelUnionFind2DStripes.
+
 #ifndef PARALLEL_UNION_FIND_2D_STRIPES
 #define PARALLEL_UNION_FIND_2D_STRIPES
 
-#include "parallelunionfindimpl.h"
-#include <sstream>
+//---------------------------------------------------------------------------
+#include "ParallelUnionFindImpl.h"
+#include "WeightedUnionFind.h"
+#include <memory>
 
+//---------------------------------------------------------------------------
 class ParallelUnionFind2DStripes : public ParallelUnionFindImpl
 {
 public:
@@ -36,11 +41,11 @@ private:
 private:
     std::size_t mNumOfPixels;
     std::size_t mNumOfGlobalPixels;
-    std::tr1::shared_ptr<WeightedUnionFind> mLocalWuf; // UF DS with local (per-processor) labeling.
-    std::tr1::shared_ptr<WeightedUnionFind> mGlobalWuf;// UF DS with global labeling.
-    std::vector<int> mPixels;         // Local mesh points.
-    std::map<int, int> mGlobalLabels; // Non-consecutive local root is a key, a consecutive global root is a value.
-    std::vector<Pixel> mGlobalPixels; // Extended pixels.
+    std::tr1::shared_ptr<WeightedUnionFind> mLocalWuf; // UF with local (per-processor) labeling.
+    std::tr1::shared_ptr<WeightedUnionFind> mGlobalWuf;// UF with global labeling.
+    std::vector<int> mPixels;                          // Local mesh points.
+    std::map<int, int> mGlobalLabels;                  // Non-consecutive local root is a key, a consecutive global root is a value.
+    std::vector<Pixel> mGlobalPixels;                  // Extended pixels.
 };
 
 //---------------------------------------------------------------------------

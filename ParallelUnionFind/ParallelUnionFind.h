@@ -3,8 +3,11 @@
 #ifndef PARALLEL_UNION_FIND
 #define PARALLEL_UNION_FIND
 
+//---------------------------------------------------------------------------
 #include "ParallelUnionFindImpl.h"
+#include <memory>                  // For shared_ptr
 
+//---------------------------------------------------------------------------
 class ParallelUnionFind
 {
 public:

@@ -1,6 +1,7 @@
 // ParallelUnionFindFactory.cpp - implementation of the ParallelUnionFindFactory class.
 
 #include "ParallelUnionFindFactory.h"
+#include "ParallelUnionFind2DStripes.h"
 
 //---------------------------------------------------------------------------
 ParallelUnionFindFactory::ParallelUnionFindFactory(void)

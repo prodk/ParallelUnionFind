@@ -1,10 +1,16 @@
+// ParallelUnionFindFactory.h - a factory for creating the desired PUF implementation.
+
 #ifndef PARALLEL_UNION_FIND_FACTORY
 #define PARALLEL_UNION_FIND_FACTORY
 
+//---------------------------------------------------------------------------
 #include <string>
 
-#include "ParallelUnionFind2DStripes.h"
+//---------------------------------------------------------------------------
+class ParallelUnionFindImpl;
+struct DecompositionInfo;
 
+//---------------------------------------------------------------------------
 class ParallelUnionFindFactory
 {
 public:

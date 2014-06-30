@@ -1,9 +1,12 @@
 // WeightedUnionFind.cpp - WeightedUnionFind class implementation.
 #include "WeightedUnionFind.h"
+#include <iostream>
+#include <fstream>
 
 //---------------------------------------------------------------------------
-WeightedUnionFind::WeightedUnionFind(const std::size_t N) :
-mRoots(), mConsecutiveRoots()
+WeightedUnionFind::WeightedUnionFind(const std::size_t N)
+    : mRoots()
+    , mConsecutiveRoots()
 {
     mId.resize(N);
     mSize.resize(N);
@@ -93,6 +96,7 @@ void WeightedUnionFind::reset(int N)
     mMaxClusterSize = -1;
 }
 
+//---------------------------------------------------------------------------
 const std::map<int, int>& WeightedUnionFind::getConsecutiveRootIds()
 {
     mConsecutiveRoots.clear();

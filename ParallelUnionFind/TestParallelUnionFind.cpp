@@ -1,8 +1,16 @@
+// TestParallelUnionFind.cpp - implementation of the TestParallelUnionFind class.
+
 #include "TestParallelUnionFind.h"
+#include "ParallelUnionFind.h"
+#include <fstream>
+#include <sstream>
+#include <mpi.h>
 
 //---------------------------------------------------------------------------
-TestParallelUnionFind::TestParallelUnionFind(int argc, char **argv) :
-mNumOfProc(-1), mMyRank(-1), mPixels()
+TestParallelUnionFind::TestParallelUnionFind(int argc, char **argv)
+    : mNumOfProc(-1)
+    , mMyRank(-1)
+    , mPixels()
 {
     MPI_Init (&argc, &argv);
     MPI_Comm_size (MPI_COMM_WORLD, &mNumOfProc);
@@ -30,7 +38,7 @@ void TestParallelUnionFind::runTests()
 }
 
 //---------------------------------------------------------------------------
-void TestParallelUnionFind::analyze(DecompositionInfo& info, const std::string fileIn)
+void TestParallelUnionFind::analyze(DecompositionInfo& info, const std::string& fileIn)
 {
     //if (readPixels(mPixels, fileIn, info) >= 0)
     if (readPixelsInParallel(fileIn, info) >= 0)
@@ -99,12 +107,6 @@ DecompositionInfo TestParallelUnionFind::defineDecomposition8()
 
     const int size = 8;
     fillInDecompositionInfo(info, size);
-
-    //info.domainWidth = 8;//mNumOfProc;
-    //info.domainHeight = 8;
-    //info.myRank = mMyRank;
-    //info.numOfProc = mNumOfProc;
-    //info.pixels = 0;
 
     return info;
 }
@@ -271,6 +273,7 @@ void TestParallelUnionFind::forceWindowToStay() const
     }
 }
 
+//---------------------------------------------------------------------------
 void TestParallelUnionFind::printPartOfThePicture(const DecompositionInfo& info) const
 {
     std::stringstream fileName;

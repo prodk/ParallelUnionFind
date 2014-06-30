@@ -3,12 +3,12 @@
 #ifndef WEIGHTED_UNION_FIND
 #define WEIGHTED_UNION_FIND
 
-#include <iostream>
+//---------------------------------------------------------------------------
 #include <vector>
 #include <set>
 #include <map>
-#include <fstream>
 
+//---------------------------------------------------------------------------
 class WeightedUnionFind
 {
 public:
@@ -16,8 +16,8 @@ public:
     ~WeightedUnionFind(void);
 
     // Interface for the client.
-    bool connected(int p, int q);        // True if both verteces are in the same cluster.
-    void makeUnion(int p, int q);        // Put the verteces to the same cluster.
+    bool connected(int p, int q);        // True if both vertices are in the same cluster.
+    void makeUnion(int p, int q);        // Put the vertices to the same cluster.
     void setInitialRoot(int id);         // Set the initial root of the vertex.
     void reset(int N);                   // Set the union find to a state as if it had been newly created.
 

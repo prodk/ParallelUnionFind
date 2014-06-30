@@ -1,12 +1,16 @@
 // ParallelUnionFind2DStripes.cpp - implementation of the ParallelUnionFind2DStripes class
 #include "ParallelUnionFind2DStripes.h"
+#include <iostream>
+#include <sstream>
+#include <fstream>
+#include <mpi.h>
 
 //---------------------------------------------------------------------------
-ParallelUnionFind2DStripes::ParallelUnionFind2DStripes(const DecompositionInfo& info) :
-                                ParallelUnionFindImpl(info),
-                                mNumOfPixels(info.domainWidth * info.domainHeight),
-                                mNumOfGlobalPixels((info.domainWidth + 2) * info.domainHeight),
-                                mLocalWuf(new WeightedUnionFind(mNumOfPixels))
+ParallelUnionFind2DStripes::ParallelUnionFind2DStripes(const DecompositionInfo& info)
+    : ParallelUnionFindImpl(info)
+    , mNumOfPixels(info.domainWidth * info.domainHeight)
+    , mNumOfGlobalPixels((info.domainWidth + 2) * info.domainHeight)
+    , mLocalWuf(new WeightedUnionFind(mNumOfPixels))
 {
     if (mDecompositionInfo.numOfProc <= 0)
     {
@@ -56,13 +60,13 @@ void ParallelUnionFind2DStripes::runLocalUnionFind(void)
             for (int iy = 0; iy < ny; ++iy)
             {
                 // TODO: reconsider periodic boundaries here!
-                int neighbX = (ix + 1) % nx;     // Right neighbor with periodic boundaries.
-                int neighbY = (iy + 1) % ny;     // Bottom neighbor with periodic boundaries.
+                int neighbX = (ix + 1) % nx;          // Right neighbor with periodic boundaries.
+                int neighbY = (iy + 1) % ny;          // Bottom neighbor with periodic boundaries.
 
                 // Act only if the current pixel contains value.
                 if (mDecompositionInfo.pixelValue == mPixels[indexTo1D(ix, iy)])
                 {
-                    int idp = indexTo1D(ix, iy); // Convert 2D pixel coordinates into 1D index.
+                    int idp = indexTo1D(ix, iy);      // Convert 2D pixel coordinates into 1D index.
                     mLocalWuf->setInitialRoot(idp);   // Set the root and the tree size (if it was 0).
 
                     // See whether neighboring (in both directions) pixels should be merged.
@@ -86,11 +90,12 @@ void ParallelUnionFind2DStripes::constructGlobalLabeling(void)
     // Convert them to global labels.
     int myOffset = 0;
     // At first receive the number of clusters located on the processors with smaller ids.
-    int msgId = 1;
+    const int msgId = 1;
     MPI_Status mpiStatus;
     if (0 != mDecompositionInfo.myRank) // Root doesn't receive anything, its offset is 0. The root initiates sending.
     {
-        MPI_Recv(&myOffset, 1, MPI_INT, mDecompositionInfo.myRank-1, msgId, MPI_COMM_WORLD, &mpiStatus);
+        const int receiveFromProc = mDecompositionInfo.myRank-1;
+        MPI_Recv(&myOffset, 1, MPI_INT, receiveFromProc, msgId, MPI_COMM_WORLD, &mpiStatus);
     }
 
     // Then send to the following proc the offset that includes the # of clusters on the current processor.
@@ -100,7 +105,8 @@ void ParallelUnionFind2DStripes::constructGlobalLabeling(void)
 
     if (mDecompositionInfo.myRank < mDecompositionInfo.numOfProc - 1) // Exclude the last processor from sending.
     {
-        MPI_Send(&offsetForTheNextProcessor, 1, MPI_INT, mDecompositionInfo.myRank+1, msgId, MPI_COMM_WORLD);
+        const int sendToProc = mDecompositionInfo.myRank+1;
+        MPI_Send(&offsetForTheNextProcessor, 1, MPI_INT, sendToProc, msgId, MPI_COMM_WORLD);
     }
 
     // Construct global ids.

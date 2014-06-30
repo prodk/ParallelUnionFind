@@ -1,15 +1,19 @@
-// ParallelUnionFindImpl.h - declaration of the ParallelUnionFindImpl class which is a part of the Bridge pattern.
-// Through the Template Method pattern defines the general sceleton
+// ParallelUnionFindImpl.h - declaration of the ParallelUnionFindImpl class 
+// which is a part of the Bridge pattern.
+// Using the Template Method pattern this class defines the general sceleton
 // of the parallel union-find algorithm described in:
 // C.Harrison et al. Eurographics Symposium on Parallel Graphics and Visualization, 2011.
 
 #ifndef PARALLEL_UNION_FIND_IMPL
 #define PARALLEL_UNION_FIND_IMPL
 
-#include <mpi.h>
+//---------------------------------------------------------------------------
 #include <string>
-#include "WeightedUnionFind.h"
 
+//---------------------------------------------------------------------------
+class WeightedUnionFind;
+
+//---------------------------------------------------------------------------
 struct DecompositionInfo
 {
     DecompositionInfo() :
@@ -24,6 +28,7 @@ struct DecompositionInfo
                              // 1 corresponds to contact, 0 to non-contact.
 };
 
+//---------------------------------------------------------------------------
 struct Pixel
 {
     int pixelValue;
@@ -31,6 +36,7 @@ struct Pixel
     int sizeOfCluster;
 };
 
+//---------------------------------------------------------------------------
 // Records a single merge.
 struct Merge
 {
@@ -40,14 +46,14 @@ struct Merge
     int clusterSize;
 };
 
-
+//---------------------------------------------------------------------------
 class ParallelUnionFindImpl
 {
 public:
     ParallelUnionFindImpl(const DecompositionInfo& info);
     virtual ~ParallelUnionFindImpl(void);
 
-    void analyze(void);         // Template method pattern: specify a skeleton for the algorithm.
+    void analyze(void);         // TM pattern: specify a skeleton for the algorithm.
 
     // Output functions, obligatory to override.
     virtual void printClusterSizes(const std::string& fileName) const = 0;

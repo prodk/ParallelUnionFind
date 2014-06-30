@@ -1,12 +1,15 @@
 // TestParallelUnionFind.h - TestParallelUnionFind class declaration.
-// Provides kind of unit test.
+// Provides kind of unit tests.
 
 #ifndef TEST_PARALLEL_UNION_FIND
 #define TEST_PARALLEL_UNION_FIND
 
-#include "ParallelUnionFind.h"
-#include <sstream>
+//---------------------------------------------------------------------------
+#include "ParallelUnionFindImpl.h"
+#include <vector>
+#include <iostream>
 
+//---------------------------------------------------------------------------
 class TestParallelUnionFind
 {
 public:
@@ -15,7 +18,7 @@ public:
     void runTests();
 
 private:
-    void analyze(DecompositionInfo& info, const std::string fileIn);
+    void analyze(DecompositionInfo& info, const std::string& fileIn);
     void test8();
     void test256();
     void test1k();

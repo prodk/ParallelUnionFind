@@ -3,8 +3,8 @@
 #include "ParallelUnionFindImpl.h"
 
 //---------------------------------------------------------------------------
-ParallelUnionFindImpl::ParallelUnionFindImpl(const DecompositionInfo& info) :
-mDecompositionInfo(info)
+ParallelUnionFindImpl::ParallelUnionFindImpl(const DecompositionInfo& info)
+    : mDecompositionInfo(info)
 {
 }
 
