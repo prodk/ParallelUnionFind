@@ -17,7 +17,7 @@ class WeightedUnionFind;
 struct DecompositionInfo
 {
     DecompositionInfo() :
-    numOfProc(0), myRank(-1), domainWidth(1), domainHeight(1), pixels(0), pixelValue(1) {}
+    numOfProc(0), myRank(-1), domainWidth(1), domainHeight(1), pixels(0), pixelValue(1), periodicBoundaryX(false) {}
 
     int numOfProc;
     int myRank;
@@ -26,6 +26,7 @@ struct DecompositionInfo
     const int* pixels;       // A pointer to the array of grid points in 1D format.
     int pixelValue;          // Value that is used for uniting the points.
                              // 1 corresponds to contact, 0 to non-contact.
+    bool periodicBoundaryX;  // True if use pbc in the x direction. False by default.
 };
 
 //---------------------------------------------------------------------------

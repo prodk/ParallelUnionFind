@@ -50,10 +50,37 @@ private:
     // Stage 3 helpers.
     void setLocalPartOfGloblaPixels(void);
     void copyLeftColumnAndSendToLeftNeighbor(void);
-    void copyRightColumnAndSendToRightNeighbor(void);
-    void copyColumn(void);
-    void sendColumn(void);
 
+    // A helper data structure containing attributes of the pixel stripe sent between processors.
+    struct SPixelStripe
+    {
+        std::vector<int> pixelValue;
+        std::vector<int> globalClusterId;
+        std::vector<int> sizeOfCluster;
+
+        explicit SPixelStripe(size_t size)
+            : pixelValue(size)
+            , globalClusterId(size)
+            , sizeOfCluster(size)
+        {}
+    };
+
+    void copyPixelStripeToSend(SPixelStripe & stripeToSend);
+    void sendPixelStripeFromEvenReceiveOnOdd(SPixelStripe & stripeToSend, SPixelStripe & stripeToReceive) const;
+    void sendPixelStripeFromOddReceiveOnEven(SPixelStripe & stripeToSend, SPixelStripe & stripeToReceive) const;
+
+    // TODO: introduce a flag that specifies whether we send from right to left or vice versa.
+    // We send from right to left, and receive from left to right.
+    int getProcessorSendTo() const;      // Periodic BCs are taken into account via DecompositionInfo.
+    int getProcessorReceiveFrom() const; // Periodic BCs are taken into account via DecompositionInfo.
+    bool isNeighborProcessorValid(const int rank) const;
+
+    void sendStripe(SPixelStripe & stripeToSend, const int msgId[], const int size) const;
+    void receiveStripe(SPixelStripe & stripeToReceive, const int msgId[], const int size) const;
+
+    void saveReceivedStripe(const SPixelStripe & stripeToReceive);
+
+    void copyRightColumnAndSendToRightNeighbor(void);
 
 private:
     std::size_t mNumOfPixels;

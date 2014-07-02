@@ -69,6 +69,7 @@ inline void TestParallelUnionFind::fillInDecompositionInfo(DecompositionInfo& in
     info.myRank = mMyRank;
     info.numOfProc = mNumOfProc;
     info.pixels = 0;
+    info.periodicBoundaryX = false;
 }
 
 #endif // TEST_PARALLEL_UNION_FIND
