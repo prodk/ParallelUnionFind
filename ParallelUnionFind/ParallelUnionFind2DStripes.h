@@ -48,7 +48,10 @@ private:
     void sendTotalClustersToNextProcs(const int numOfClustersOnSmallerProcIds, const int numOfMyClusters) const;
 
     // Stage 3 helpers.
-    void setLocalPartOfGloblaPixels(void);
+    void setLocalPartOfGloblaPixels(void); // TODO: rename this function (see implementation for why).
+
+    // TODO: think about refactoring of left/right stripes to avoid code duplication.
+    // At the moment I decided to hard code this for performance/clarity reasons.
     void copyLeftColumnAndSendToLeftNeighbor(void);
 
     // A helper data structure containing attributes of the pixel stripe sent between processors.
@@ -65,22 +68,32 @@ private:
         {}
     };
 
-    void copyPixelStripeToSend(SPixelStripe & stripeToSend);
-    void sendPixelStripeFromEvenReceiveOnOdd(SPixelStripe & stripeToSend, SPixelStripe & stripeToReceive) const;
-    void sendPixelStripeFromOddReceiveOnEven(SPixelStripe & stripeToSend, SPixelStripe & stripeToReceive) const;
+    void copyLeftPixelStripeToSend(SPixelStripe & stripeToSend);
 
-    // TODO: introduce a flag that specifies whether we send from right to left or vice versa.
-    // We send from right to left, and receive from left to right.
-    int getProcessorSendTo() const;      // Periodic BCs are taken into account via DecompositionInfo.
-    int getProcessorReceiveFrom() const; // Periodic BCs are taken into account via DecompositionInfo.
-    bool isNeighborProcessorValid(const int rank) const;
+    void sendLeftStripeFromEvenReceiveOnOdd(SPixelStripe & stripeToSend, SPixelStripe & stripeToReceive) const;
+    void sendLeftStripeFromOddReceiveOnEven(SPixelStripe & stripeToSend, SPixelStripe & stripeToReceive) const;
 
-    void sendStripe(SPixelStripe & stripeToSend, const int msgId[], const int size) const;
-    void receiveStripe(SPixelStripe & stripeToReceive, const int msgId[], const int size) const;
+    void sendLeftStripe(SPixelStripe & stripeToSend, const int msgId[], const int size) const;
+    void receiveLeftStripe(SPixelStripe & stripeToReceive, const int msgId[], const int size) const;
 
-    void saveReceivedStripe(const SPixelStripe & stripeToReceive);
+    void saveReceivedStripeToRightStripe(const SPixelStripe & stripeToReceive);
 
+    // Coping with the right stripe.
     void copyRightColumnAndSendToRightNeighbor(void);
+    void copyRightPixelStripeToSend(SPixelStripe & stripeToSend);
+
+    void sendRightStripeFromEvenReceiveOnOdd(SPixelStripe & stripeToSend, SPixelStripe & stripeToReceive) const;
+    void sendRightStripeFromOddReceiveOnEven(SPixelStripe & stripeToSend, SPixelStripe & stripeToReceive) const;
+
+    void sendRightStripe(SPixelStripe & stripeToSend, const int msgId[], const int size) const;
+    void receiveRightStripe(SPixelStripe & stripeToReceive, const int msgId[], const int size) const;
+
+    void saveReceivedStripeToLeftStripe(const SPixelStripe & stripeToReceive);
+
+    // Used both for left/right stripes
+    int getLeftNeighborProcessor() const;      // Periodic BCs are taken into account via DecompositionInfo.
+    int getRightNeighborProcessor() const;     // Periodic BCs are taken into account via DecompositionInfo.
+    bool isNeighborProcessorValid(const int rank) const;
 
 private:
     std::size_t mNumOfPixels;
