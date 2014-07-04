@@ -9,10 +9,19 @@
 #include <map>
 
 //---------------------------------------------------------------------------
+struct Pixel
+{
+    int pixelValue;
+    int globalClusterId;
+    int sizeOfCluster;
+};
+
+//---------------------------------------------------------------------------
 class WeightedUnionFind
 {
 public:
     WeightedUnionFind(const std::size_t N);
+    WeightedUnionFind(const std::size_t N, const std::vector<Pixel> pixelsWithGlobalLabels); // Constructor for the UF of global labels.
     ~WeightedUnionFind(void);
 
     // Interface for the client.

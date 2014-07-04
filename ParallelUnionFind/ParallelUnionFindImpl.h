@@ -30,14 +30,6 @@ struct DecompositionInfo
 };
 
 //---------------------------------------------------------------------------
-struct Pixel
-{
-    int pixelValue;
-    int globalClusterId;
-    int sizeOfCluster;
-};
-
-//---------------------------------------------------------------------------
 // Records a single merge.
 struct Merge
 {

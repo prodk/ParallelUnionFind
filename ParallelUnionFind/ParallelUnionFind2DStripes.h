@@ -95,11 +95,13 @@ private:
     int getRightNeighborProcessor() const;     // Periodic BCs are taken into account via DecompositionInfo.
     bool isNeighborProcessorValid(const int rank) const;
 
+    void runUfOnGlobalLabelsAndRecordMerges();
+
 private:
     std::size_t mNumOfPixels;
     std::size_t mNumOfGlobalPixels;
     std::tr1::shared_ptr<WeightedUnionFind> mLocalWuf; // UF with local (per-processor) labeling.
-    std::tr1::shared_ptr<WeightedUnionFind> mGlobalWuf;// UF with global labeling.
+    //std::tr1::shared_ptr<WeightedUnionFind> mGlobalWuf;// UF with global labeling.
     std::vector<int> mLocalPixels;                     // Local mesh points.
     std::map<int, int> mGlobalLabels;                  // Non-consecutive local root is a key, a consecutive global root is a value.
     std::vector<Pixel> mGlobalPixels;                  // Extended pixels.

@@ -11,6 +11,7 @@ ParallelUnionFind2DStripes::ParallelUnionFind2DStripes(const DecompositionInfo& 
     , mNumOfPixels(info.domainWidth * info.domainHeight)
     , mNumOfGlobalPixels((info.domainWidth + 2) * info.domainHeight)
     , mLocalWuf(new WeightedUnionFind(mNumOfPixels))
+    //, mGlobalWuf()
 {
     if (mDecompositionInfo.numOfProc <= 0)
     {
@@ -467,6 +468,20 @@ int ParallelUnionFind2DStripes::getRightNeighborProcessor() const
 bool ParallelUnionFind2DStripes::isNeighborProcessorValid(const int rank) const
 {
     return (rank >= 0);
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::runUfOnGlobalLabelsAndRecordMerges()
+{
+    // We use the same extended width even when there are no periodic BCs.
+    // In the latter case the pixels of the boundary stripes contain -1 and are don't contribute to clusters.
+    const int numOfPoints = mDecompositionInfo.domainHeight * (mDecompositionInfo.domainWidth + 2);
+
+    std::tr1::shared_ptr<WeightedUnionFind> globalWuf(new WeightedUnionFind(numOfPoints, mGlobalPixels));
+
+    // Note: for global UF roots are set in the constructor. So no need to set initial root as for the local UF.
+
+    // TODO: run the global UF here and record their merges (if any).
 }
 
 //---------------------------------------------------------------------------
