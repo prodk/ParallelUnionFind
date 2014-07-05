@@ -164,6 +164,7 @@ void ParallelUnionFind2DStripes::mergeLabelsAcrossProcessors(void)
 
 #ifdef _DEBUG
     printLocalExtendedPicture(mDecompositionInfo);
+    printReceivedGlobalLabels();
 #endif
 
     // Initialize the global UF with the local and received data.
@@ -557,6 +558,30 @@ void ParallelUnionFind2DStripes::printLocalExtendedPicture(const DecompositionIn
             for (int ix = 0; ix < nx; ++ix)
             {
                 outFile << mGlobalPixels[indexTo1D(ix, iy)].pixelValue;
+            }
+            outFile << std::endl;
+        }
+        outFile.close();
+    }
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::printReceivedGlobalLabels() const
+{
+    std::stringstream fileName;
+    fileName << "proc_" << mDecompositionInfo.myRank << "_mGLobal_labels.dat";
+    std::ofstream outFile(fileName.str());
+
+    if (outFile.good())
+    {
+        const int nx = mDecompositionInfo.domainWidth + 2;
+        const int ny = mDecompositionInfo.domainHeight;
+
+        for (int iy = 0; iy < ny; ++iy)            // Loop through the pixels, rows fastest.
+        {
+            for (int ix = 0; ix < nx; ++ix)
+            {
+                outFile << mGlobalPixels[indexTo1D(ix, iy)].globalClusterId;
             }
             outFile << std::endl;
         }

@@ -55,12 +55,12 @@ void TestParallelUnionFind::analyze(DecompositionInfo& info, const std::string& 
         //puf.printClusterSizeHistogram(bins, "cont"+fileIn);
 
         // Analyze non-contact.
-        std::cout << std::endl;
+        /*std::cout << std::endl;
         const int pixelvalue = 0;
         puf.setPixelValue(pixelvalue);
         puf.analyze();
         puf.printClusterStatistics("");
-        puf.printClusterSizes("");
+        puf.printClusterSizes("");*/
         //puf.printClusterSizeHistogram(bins, "ncont"+fileIn);
     }
 }

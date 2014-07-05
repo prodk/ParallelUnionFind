@@ -36,9 +36,6 @@ private:
     inline int indexTo1D(int ix, int iy) const;
     inline void mergePixels(int idq, int idp);
 
-    // Implementation helpers.
-    void printLocalExtendedPicture(const DecompositionInfo& info) const;
-
     // Stage 1 helpers.
     int getNeighborPeriodicBC(const int index, const int size) const;    // Next neighbor assuming the PBC.
     int getNeighborNonPeriodicBC(const int index, const int size) const; // Next neighbor, no PBC. Returns -1 at the border.
@@ -96,6 +93,10 @@ private:
     bool isNeighborProcessorValid(const int rank) const;
 
     void runUfOnGlobalLabelsAndRecordMerges();
+
+    // Implementation helpers.
+    void printLocalExtendedPicture(const DecompositionInfo& info) const;
+    void printReceivedGlobalLabels() const;
 
 private:
     std::size_t mNumOfPixels;
