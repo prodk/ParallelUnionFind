@@ -21,6 +21,8 @@ class WeightedUnionFind
 {
 public:
     WeightedUnionFind(const std::size_t N);
+
+    // TODO: most probably remove this constructor.
     WeightedUnionFind(const std::size_t N, const std::vector<Pixel> pixelsWithGlobalLabels); // Constructor for the UF of global labels.
     ~WeightedUnionFind(void);
 

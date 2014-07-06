@@ -11,7 +11,7 @@ ParallelUnionFind2DStripes::ParallelUnionFind2DStripes(const DecompositionInfo& 
     , mNumOfPixels(info.domainWidth * info.domainHeight)
     , mNumOfGlobalPixels((info.domainWidth + 2) * info.domainHeight)
     , mLocalWuf(new WeightedUnionFind(mNumOfPixels))
-    //, mGlobalWuf()
+    , mGlobalWuf()
 {
     if (mDecompositionInfo.numOfProc <= 0)
     {
@@ -80,6 +80,15 @@ void ParallelUnionFind2DStripes::runLocalUnionFind(void)
             } // End for iy.
         } // End for ix.
     } // End if.
+    else // We have no valid pixels.
+    {
+        // TODO: get rid of magic numbers (root rank, error code). Use enum.
+        if (0 == mDecompositionInfo.myRank)
+        {
+        }
+        const int errorCode = 123;
+        MPI_Abort(MPI_COMM_WORLD, errorCode);
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -127,7 +136,7 @@ int ParallelUnionFind2DStripes::receiveNumberOfClustersFromPreviousProcs() const
     // Root doesn't receive anything, its offset is 0. The root initiates sending.
     if (0 != mDecompositionInfo.myRank)
     {
-        const int receiveFromProc = mDecompositionInfo.myRank-1;
+        const int receiveFromProc = mDecompositionInfo.myRank - 1;
         MPI_Recv(&numOfClusters, 1, MPI_INT, receiveFromProc, msgId, MPI_COMM_WORLD, &mpiStatus);
     }
 
@@ -142,7 +151,7 @@ void ParallelUnionFind2DStripes::sendTotalClustersToNextProcs(const int numOfClu
     const int msgId = 1;
     if (mDecompositionInfo.myRank < mDecompositionInfo.numOfProc - 1) // Exclude the last processor from sending.
     {
-        const int sendToProc = mDecompositionInfo.myRank+1;
+        const int sendToProc = mDecompositionInfo.myRank + 1;
         MPI_Send(&offsetForTheNextProcessor, 1, MPI_INT, sendToProc, msgId, MPI_COMM_WORLD);
     }
 }
@@ -180,20 +189,28 @@ void ParallelUnionFind2DStripes::setLocalPartOfGloblaPixels(void)
     if (0 != mDecompositionInfo.pixels)
     {
          // Initialize the first and the last columns of the global pixels.
-        const int lastStripeStart = (mDecompositionInfo.domainWidth + 1)*mDecompositionInfo.domainHeight;
-        for (std::size_t iy = 0u; iy < mDecompositionInfo.domainHeight; ++iy)
-        {
-            const int firstStripeId = iy;
-            // TODO: get rid of the magic -1 number: introduce an enum.
-            mGlobalPixels[firstStripeId].pixelValue = -1;
-            mGlobalPixels[firstStripeId].globalClusterId = -1;
-            mGlobalPixels[firstStripeId].sizeOfCluster = -1;
+        //const int lastStripeStart = (mDecompositionInfo.domainWidth + 1)*mDecompositionInfo.domainHeight;
+        //for (std::size_t iy = 0u; iy < mDecompositionInfo.domainHeight; ++iy)
+        //{
+        //    const int firstStripeId = iy;
+        //    // TODO: get rid of the magic -1 number: introduce an enum.
+        //    mGlobalPixels[firstStripeId].pixelValue = -1;
+        //    mGlobalPixels[firstStripeId].globalClusterId = -1;
+        //    mGlobalPixels[firstStripeId].sizeOfCluster = -1;
 
-            const int lastStripeId = iy + lastStripeStart;
-            // TODO: get rid of the magic -1 number: introduce an enum.
-            mGlobalPixels[lastStripeId].pixelValue = -1;
-            mGlobalPixels[lastStripeId].globalClusterId = -1;
-            mGlobalPixels[lastStripeId].sizeOfCluster = -1;
+        //    const int lastStripeId = iy + lastStripeStart;
+        //    // TODO: get rid of the magic -1 number: introduce an enum.
+        //    mGlobalPixels[lastStripeId].pixelValue = -1;
+        //    mGlobalPixels[lastStripeId].globalClusterId = -1;
+        //    mGlobalPixels[lastStripeId].sizeOfCluster = -1;
+        //}
+        // Init everything to -1.
+        const std::size_t numOfExtendedPixels = mGlobalPixels.size();
+        for (std::size_t index = 0u; index < numOfExtendedPixels; ++index)
+        {
+            mGlobalPixels[index].pixelValue = -1;
+            mGlobalPixels[index].globalClusterId = -1;
+            mGlobalPixels[index].sizeOfCluster = -1;
         }
 
         // Copy the data from the localWuf to the inner part of the global pixels.
@@ -206,9 +223,19 @@ void ParallelUnionFind2DStripes::setLocalPartOfGloblaPixels(void)
 
                 mGlobalPixels[pixelGlobalId].pixelValue = mLocalPixels[pixelLocalId];
 
-                const int pixelRoot = mLocalWuf->getPixelRoot(pixelLocalId);
-                mGlobalPixels[pixelGlobalId].globalClusterId = mGlobalLabels[pixelRoot];
-                mGlobalPixels[pixelGlobalId].sizeOfCluster = mLocalWuf->getClusterSize(pixelRoot);
+                // Fill in only those pixels that have the desired value.
+                if (mDecompositionInfo.pixelValue == mGlobalPixels[pixelGlobalId].pixelValue)
+                {
+                    const int pixelRoot = mLocalWuf->getPixelRoot(pixelLocalId);
+                    mGlobalPixels[pixelGlobalId].globalClusterId = mGlobalLabels[pixelRoot];
+                    mGlobalPixels[pixelGlobalId].sizeOfCluster = mLocalWuf->getClusterSize(pixelRoot);
+                }
+                else
+                {
+                    // TODO: get rid of magic numbers.
+                    mGlobalPixels[pixelGlobalId].globalClusterId = -1;
+                    mGlobalPixels[pixelGlobalId].sizeOfCluster = -1;
+                }
             }
         }
     }
@@ -234,9 +261,19 @@ void ParallelUnionFind2DStripes::copyLeftPixelStripeToSend(SPixelStripe & stripe
     {
         stripeToSend.pixelValue[iy] = mLocalPixels[iy];
 
-        const int pixelRoot = mLocalWuf->getPixelRoot(iy);
-        stripeToSend.globalClusterId[iy] = mGlobalLabels[pixelRoot];
-        stripeToSend.sizeOfCluster[iy] = mLocalWuf->getClusterSize(pixelRoot);
+        // Set attributes only of those pixels that have the desired value.
+        if (mDecompositionInfo.pixelValue == stripeToSend.pixelValue[iy])
+        {
+            const int pixelRoot = mLocalWuf->getPixelRoot(iy);
+            stripeToSend.globalClusterId[iy] = mGlobalLabels[pixelRoot];
+            stripeToSend.sizeOfCluster[iy] = mLocalWuf->getClusterSize(pixelRoot);
+        }
+        else
+        {
+            // TODO: get rid of magic numbers.
+            stripeToSend.globalClusterId[iy] = -1;
+            stripeToSend.sizeOfCluster[iy] = -1;
+        }
     }
 }
 
@@ -328,7 +365,6 @@ void ParallelUnionFind2DStripes::copyRightColumnAndSendToRightNeighbor(void)
     sendRightStripeFromOddReceiveOnEven(stripeToSend, stripeToReceive);
 
     saveReceivedStripeToLeftStripe(stripeToReceive);
-
 }
 
 //---------------------------------------------------------------------------
@@ -340,9 +376,18 @@ void ParallelUnionFind2DStripes::copyRightPixelStripeToSend(SPixelStripe & strip
         const int lastStripeId = iy + lastStripeStart;
         stripeToSend.pixelValue[iy] = mLocalPixels[lastStripeId];
 
-        const int pixelRoot = mLocalWuf->getPixelRoot(lastStripeId);
-        stripeToSend.globalClusterId[iy] = mGlobalLabels[pixelRoot];
-        stripeToSend.sizeOfCluster[iy] = mLocalWuf->getClusterSize(pixelRoot);
+        // Set attributes only of those pixels that have the desired value.
+        if (mDecompositionInfo.pixelValue == stripeToSend.pixelValue[iy])
+        {
+            const int pixelRoot = mLocalWuf->getPixelRoot(lastStripeId);
+            stripeToSend.globalClusterId[iy] = mGlobalLabels[pixelRoot];
+            stripeToSend.sizeOfCluster[iy] = mLocalWuf->getClusterSize(pixelRoot);
+        }
+        else
+        {
+            stripeToSend.globalClusterId[iy] = -1;
+            stripeToSend.sizeOfCluster[iy] = -1;
+        }
     }
 }
 
@@ -476,13 +521,57 @@ void ParallelUnionFind2DStripes::runUfOnGlobalLabelsAndRecordMerges()
 {
     // We use the same extended width even when there are no periodic BCs.
     // In the latter case the pixels of the boundary stripes contain -1 and are don't contribute to clusters.
-    const int numOfPoints = mDecompositionInfo.domainHeight * (mDecompositionInfo.domainWidth + 2);
+    const int numOfExtendedPixels = mDecompositionInfo.domainHeight * (mDecompositionInfo.domainWidth + 2);
 
-    std::tr1::shared_ptr<WeightedUnionFind> globalWuf(new WeightedUnionFind(numOfPoints, mGlobalPixels));
+    mGlobalWuf = static_cast<std::tr1::shared_ptr<WeightedUnionFind> >(new WeightedUnionFind(numOfExtendedPixels));
 
-    // Note: for global UF roots are set in the constructor. So no need to set initial root as for the local UF.
+    // At first run the local UF, but merge the pixels based on their global cluster id, not the pixel value.
+
 
     // TODO: run the global UF here and record their merges (if any).
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::unionExtendedPixelsUsingGlobalLabels()
+{
+    // We run a local UF but on all the pixels, including the received stripe(s).
+    // But clusters are identified based on the global cluster id, and not on the pixel value.
+    // In this way we will prepare the UF tree of merged clusters.
+
+    const int numOfExtendedPixels = mDecompositionInfo.domainHeight * (mDecompositionInfo.domainWidth + 2);
+    mGlobalWuf->reset(numOfExtendedPixels);                // Clear the UF. Necessary if we reuse the same UF.
+
+    const int nx = mDecompositionInfo.domainWidth + 2;
+    const int ny = mDecompositionInfo.domainHeight;
+
+    for (int ix = 0; ix < nx; ++ix)                // Loop through the pixels, columns fastest.
+    {
+        for (int iy = 0; iy < ny; ++iy)
+        {
+            // Act only if the current pixel contains the desired value.
+            int idp = indexTo1D(ix, iy);      // Convert 2D pixel coordinates into 1D index.
+            if (mGlobalPixels[idp].globalClusterId > 0) // TODO: remove this magic condition, introduce is clusterIdValid() function.
+            {
+                mGlobalWuf->setInitialRoot(idp);   // Set the root and the tree size (if it was 0).
+
+                // See whether neighboring (in both directions) pixels should be merged.
+                //const int neighbX = getNeighborNonPeriodicBC(ix, nx);   // Right neighbor without periodic boundaries.
+                //const int idx = indexTo1D(neighbX, iy);
+                //// Merge pixels only if they belong to the same cluster.
+                //if ( (neighbX >= 0) && (mGlobalPixels[idx].globalClusterId == mGlobalPixels[idp].globalClusterId) )
+                //{
+                //    mergePixels(idx, idp);
+                //}
+
+                //const int neighbY = getNeighborPeriodicBC(iy, ny);      // Bottom neighbor with periodic boundaries.
+                //const int idy = indexTo1D(ix, neighbY);
+                //if (mGlobalPixels[idy].globalClusterId == mGlobalPixels[idp].globalClusterId)
+                //{
+                //    mergePixels(idy, idp);
+                //}
+            }
+        } // End for iy.
+    } // End for ix.
 }
 
 //---------------------------------------------------------------------------

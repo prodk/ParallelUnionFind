@@ -48,6 +48,7 @@ private:
     void setLocalPartOfGloblaPixels(void); // TODO: rename this function (see implementation for why).
 
     // TODO: think about refactoring of left/right stripes to avoid code duplication.
+    // TODO: encapsulate this sending/receiving code into a strategy class.
     // At the moment I decided to hard code this for performance/clarity reasons.
     void copyLeftColumnAndSendToLeftNeighbor(void);
 
@@ -93,6 +94,7 @@ private:
     bool isNeighborProcessorValid(const int rank) const;
 
     void runUfOnGlobalLabelsAndRecordMerges();
+    void unionExtendedPixelsUsingGlobalLabels();
 
     // Implementation helpers.
     void printLocalExtendedPicture(const DecompositionInfo& info) const;
@@ -102,7 +104,7 @@ private:
     std::size_t mNumOfPixels;
     std::size_t mNumOfGlobalPixels;
     std::tr1::shared_ptr<WeightedUnionFind> mLocalWuf; // UF with local (per-processor) labeling.
-    //std::tr1::shared_ptr<WeightedUnionFind> mGlobalWuf;// UF with global labeling.
+    std::tr1::shared_ptr<WeightedUnionFind> mGlobalWuf;// UF with global labeling.
     std::vector<int> mLocalPixels;                     // Local mesh points.
     std::map<int, int> mGlobalLabels;                  // Non-consecutive local root is a key, a consecutive global root is a value.
     std::vector<Pixel> mGlobalPixels;                  // Extended pixels.
