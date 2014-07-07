@@ -526,6 +526,7 @@ void ParallelUnionFind2DStripes::runUfOnGlobalLabelsAndRecordMerges()
     mGlobalWuf = static_cast<std::tr1::shared_ptr<WeightedUnionFind> >(new WeightedUnionFind(numOfExtendedPixels));
 
     // At first run the local UF, but merge the pixels based on their global cluster id, not the pixel value.
+    unionExtendedPixelsUsingGlobalLabels();
 
 
     // TODO: run the global UF here and record their merges (if any).
@@ -555,20 +556,20 @@ void ParallelUnionFind2DStripes::unionExtendedPixelsUsingGlobalLabels()
                 mGlobalWuf->setInitialRoot(idp);   // Set the root and the tree size (if it was 0).
 
                 // See whether neighboring (in both directions) pixels should be merged.
-                //const int neighbX = getNeighborNonPeriodicBC(ix, nx);   // Right neighbor without periodic boundaries.
-                //const int idx = indexTo1D(neighbX, iy);
-                //// Merge pixels only if they belong to the same cluster.
-                //if ( (neighbX >= 0) && (mGlobalPixels[idx].globalClusterId == mGlobalPixels[idp].globalClusterId) )
-                //{
-                //    mergePixels(idx, idp);
-                //}
+                const int neighbX = getNeighborNonPeriodicBC(ix, nx);   // Right neighbor without periodic boundaries.
+                const int idx = indexTo1D(neighbX, iy);
+                // Merge pixels only if they belong to the same cluster.
+                if ( (neighbX >= 0) && (mGlobalPixels[idx].globalClusterId == mGlobalPixels[idp].globalClusterId) )
+                {
+                    mergePixels(idx, idp);
+                }
 
-                //const int neighbY = getNeighborPeriodicBC(iy, ny);      // Bottom neighbor with periodic boundaries.
-                //const int idy = indexTo1D(ix, neighbY);
-                //if (mGlobalPixels[idy].globalClusterId == mGlobalPixels[idp].globalClusterId)
-                //{
-                //    mergePixels(idy, idp);
-                //}
+                const int neighbY = getNeighborPeriodicBC(iy, ny);      // Bottom neighbor with periodic boundaries.
+                const int idy = indexTo1D(ix, neighbY);
+                if (mGlobalPixels[idy].globalClusterId == mGlobalPixels[idp].globalClusterId)
+                {
+                    mergePixels(idy, idp);
+                }
             }
         } // End for iy.
     } // End for ix.
