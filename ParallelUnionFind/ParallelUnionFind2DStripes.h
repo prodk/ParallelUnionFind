@@ -100,6 +100,8 @@ private:
     void printLocalExtendedPicture(const DecompositionInfo& info) const;
     void printReceivedGlobalLabels() const;
 
+    void printGlobalUfRootsAfterFirstMerge() const;
+
 private:
     std::size_t mNumOfPixels;
     std::size_t mNumOfGlobalPixels;

@@ -172,13 +172,12 @@ void ParallelUnionFind2DStripes::mergeLabelsAcrossProcessors(void)
     copyRightColumnAndSendToRightNeighbor();
 
 #ifdef _DEBUG
-    printLocalExtendedPicture(mDecompositionInfo);
+    //printLocalExtendedPicture(mDecompositionInfo);
     printReceivedGlobalLabels();
 #endif
 
-    // Initialize the global UF with the local and received data.
-
     // Run UF on the global UF and record the merges that happen.
+    runUfOnGlobalLabelsAndRecordMerges();
 
 }
 
@@ -528,6 +527,10 @@ void ParallelUnionFind2DStripes::runUfOnGlobalLabelsAndRecordMerges()
     // At first run the local UF, but merge the pixels based on their global cluster id, not the pixel value.
     unionExtendedPixelsUsingGlobalLabels();
 
+#ifdef _DEBUG
+    printGlobalUfRootsAfterFirstMerge();
+#endif
+
 
     // TODO: run the global UF here and record their merges (if any).
 }
@@ -559,17 +562,17 @@ void ParallelUnionFind2DStripes::unionExtendedPixelsUsingGlobalLabels()
                 const int neighbX = getNeighborNonPeriodicBC(ix, nx);   // Right neighbor without periodic boundaries.
                 const int idx = indexTo1D(neighbX, iy);
                 // Merge pixels only if they belong to the same cluster.
-                if ( (neighbX >= 0) && (mGlobalPixels[idx].globalClusterId == mGlobalPixels[idp].globalClusterId) )
-                {
-                    mergePixels(idx, idp);
-                }
+            //    if ( (neighbX >= 0) && (mGlobalPixels[idx].globalClusterId == mGlobalPixels[idp].globalClusterId) )
+            //    {
+            //        mergePixels(idx, idp);
+            //    }
 
                 const int neighbY = getNeighborPeriodicBC(iy, ny);      // Bottom neighbor with periodic boundaries.
                 const int idy = indexTo1D(ix, neighbY);
-                if (mGlobalPixels[idy].globalClusterId == mGlobalPixels[idp].globalClusterId)
-                {
-                    mergePixels(idy, idp);
-                }
+            //    if (mGlobalPixels[idy].globalClusterId == mGlobalPixels[idp].globalClusterId)
+            //    {
+            //        mergePixels(idy, idp);
+            //    }
             }
         } // End for iy.
     } // End for ix.
@@ -672,6 +675,30 @@ void ParallelUnionFind2DStripes::printReceivedGlobalLabels() const
             for (int ix = 0; ix < nx; ++ix)
             {
                 outFile << mGlobalPixels[indexTo1D(ix, iy)].globalClusterId;
+            }
+            outFile << std::endl;
+        }
+        outFile.close();
+    }
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::printGlobalUfRootsAfterFirstMerge() const
+{
+    std::stringstream fileName;
+    fileName << "proc_" << mDecompositionInfo.myRank << "_globalUf_roots.dat";
+    std::ofstream outFile(fileName.str());
+
+    if (outFile.good())
+    {
+        const int nx = mDecompositionInfo.domainWidth + 2;
+        const int ny = mDecompositionInfo.domainHeight;
+
+        for (int iy = 0; iy < ny; ++iy)            // Loop through the pixels, rows fastest.
+        {
+            for (int ix = 0; ix < nx; ++ix)
+            {
+                outFile << mGlobalWuf->getPixelRoot(indexTo1D(ix, iy));
             }
             outFile << std::endl;
         }
