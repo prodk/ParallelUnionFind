@@ -12,6 +12,7 @@ ParallelUnionFind2DStripes::ParallelUnionFind2DStripes(const DecompositionInfo& 
     , mNumOfGlobalPixels((info.domainWidth + 2) * info.domainHeight)
     , mLocalWuf(new WeightedUnionFind(mNumOfPixels))
     , mGlobalWuf()
+    , mMerge()
 {
     if (mDecompositionInfo.numOfProc <= 0)
     {
@@ -62,22 +63,22 @@ void ParallelUnionFind2DStripes::runLocalUnionFind(void)
             for (int iy = 0; iy < ny; ++iy)
             {
                 // Act only if the current pixel contains the desired value.
-                if (mDecompositionInfo.pixelValue == mLocalPixels[indexTo1D(ix, iy)])
+                int idp = indexTo1D(ix, iy);      // Convert 2D pixel coordinates into 1D index.
+                if (mDecompositionInfo.pixelValue == mLocalPixels[idp])
                 {
-                    int idp = indexTo1D(ix, iy);      // Convert 2D pixel coordinates into 1D index.
                     mLocalWuf->setInitialRoot(idp);   // Set the root and the tree size (if it was 0).
 
                     // See whether neighboring (in both directions) pixels should be merged.
                     const int neighbX = getNeighborNonPeriodicBC(ix, nx);   // Right neighbor without periodic boundaries.
                     if (neighbX >= 0)
                     {
-                        const int ix = indexTo1D(neighbX, iy);
-                        mergePixels(ix, idp, mLocalWuf, mLocalPixels[ix]);
+                        const int idx = indexTo1D(neighbX, iy);
+                        mergePixels(idx, idp, mLocalWuf, mLocalPixels[idx]);
                     }
 
                     const int neighbY = getNeighborPeriodicBC(iy, ny);      // Bottom neighbor with periodic boundaries.
-                    const int iy = indexTo1D(ix, neighbY);
-                    mergePixels(iy, idp, mLocalWuf, mLocalPixels[iy]);
+                    const int idy = indexTo1D(ix, neighbY);
+                    mergePixels(idy, idp, mLocalWuf, mLocalPixels[idy]);
                 }
             } // End for iy.
         } // End for ix.
@@ -189,23 +190,9 @@ void ParallelUnionFind2DStripes::setLocalPartOfGloblaPixels(void)
 {
     if (0 != mDecompositionInfo.pixels)
     {
-         // Initialize the first and the last columns of the global pixels.
-        //const int lastStripeStart = (mDecompositionInfo.domainWidth + 1)*mDecompositionInfo.domainHeight;
-        //for (std::size_t iy = 0u; iy < mDecompositionInfo.domainHeight; ++iy)
-        //{
-        //    const int firstStripeId = iy;
-        //    // TODO: get rid of the magic -1 number: introduce an enum.
-        //    mGlobalPixels[firstStripeId].pixelValue = -1;
-        //    mGlobalPixels[firstStripeId].globalClusterId = -1;
-        //    mGlobalPixels[firstStripeId].sizeOfCluster = -1;
-
-        //    const int lastStripeId = iy + lastStripeStart;
-        //    // TODO: get rid of the magic -1 number: introduce an enum.
-        //    mGlobalPixels[lastStripeId].pixelValue = -1;
-        //    mGlobalPixels[lastStripeId].globalClusterId = -1;
-        //    mGlobalPixels[lastStripeId].sizeOfCluster = -1;
-        //}
+        // TODO: get rid of the magic number -1.
         // Init everything to -1.
+        // TODO: perhaps remove this initialization if it is redundant.
         const std::size_t numOfExtendedPixels = mGlobalPixels.size();
         for (std::size_t index = 0u; index < numOfExtendedPixels; ++index)
         {
@@ -535,6 +522,9 @@ void ParallelUnionFind2DStripes::runUfOnGlobalLabelsAndRecordMerges()
 
 
     // TODO: run the global UF here and record their merges (if any).
+    runUfOnGlobalPixelsAndRecordGlobalMerges();
+
+    printMerges();
 }
 
 //---------------------------------------------------------------------------
@@ -588,6 +578,82 @@ void ParallelUnionFind2DStripes::mergeClusterIds(int idq, int idp, std::tr1::sha
             wuf->makeUnion(idp, idq);
         }
     }
+}
+
+//---------------------------------------------------------------------------
+//TODO: rename this function!
+void ParallelUnionFind2DStripes::runUfOnGlobalPixelsAndRecordGlobalMerges()
+{
+    // Run the local UF again on the extended pixels.
+    // But now merge clusters based on the pixel values and not on the global cluster's ids.
+    // Record the merges that occur.
+    const int numOfExtendedPixels = mDecompositionInfo.domainHeight * (mDecompositionInfo.domainWidth + 2);
+    mGlobalWuf->reset(numOfExtendedPixels);                // Clear the UF. Necessary if we reuse the same UF.
+
+    const int nx = mDecompositionInfo.domainWidth + 2;
+    const int ny = mDecompositionInfo.domainHeight;
+
+    for (int ix = 0; ix < nx; ++ix)                // Loop through the pixels, columns fastest.
+    {
+        for (int iy = 0; iy < ny; ++iy)
+        {
+            // Act only if the cluster id is valid.
+            int idp = indexTo1D(ix, iy);      // Convert 2D pixel coordinates into 1D index.
+            if (mDecompositionInfo.pixelValue == mGlobalPixels[idp].pixelValue)
+            {
+                // TODO: perhaps delete this line, we assume that mGlobalWuf has alredy been run at least once.
+                mGlobalWuf->setInitialRoot(idp);   // Set the root and the tree size (if it was 0).
+
+                // See whether neighboring (in both directions) pixels should be merged.
+                const int neighbX = getNeighborNonPeriodicBC(ix, nx);   // Right neighbor without periodic boundaries.
+                // Merge pixels only if they belong to the same cluster.
+                if (neighbX >= 0)
+                {
+                    const int idx = indexTo1D(neighbX, iy);
+                    mergePixelsAndRecordMerge(idx, idp, mGlobalWuf, mGlobalPixels[idx].pixelValue);
+                }
+
+                const int neighbY = getNeighborPeriodicBC(iy, ny);      // Bottom neighbor with periodic boundaries.
+                const int idy = indexTo1D(ix, neighbY);
+                mergePixelsAndRecordMerge(idy, idp, mGlobalWuf, mGlobalPixels[idy].pixelValue);
+            }
+        } // End for iy.
+    } // End for ix.
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::mergePixelsAndRecordMerge(int idq, int idp, std::tr1::shared_ptr<WeightedUnionFind> wuf,
+                                                            const int pixelValue)
+{
+    if ( (mDecompositionInfo.pixelValue == pixelValue) && 
+         (mGlobalPixels[idq].globalClusterId != mGlobalPixels[idp].globalClusterId) ) // Avoid redundant merges of the same cluster.
+    {
+        wuf->setInitialRoot(idq);       // Specify the non-zero size (if it was 0) and init root.
+        if (!wuf->connected(idp, idq))  // Merge vertices only if they're not yet merged.
+        {
+            wuf->makeUnion(idp, idq);
+            recordMerge(idp, idq);
+        }
+    }
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::recordMerge(const int idp, const int idq)
+{
+    Merge merge;
+    fillInTheMerge(merge, mGlobalPixels, idp, idq);
+
+    mMerge.push_back(merge);
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::fillInTheMerge(Merge & merge, const std::vector<Pixel> & pixels, const int idp, const int idq) const
+{
+    merge.p = pixels[idp].globalClusterId;
+    merge.q = pixels[idq].globalClusterId;
+    merge.pClusterSize = pixels[idp].sizeOfCluster;
+    merge.qClusterSize = pixels[idq].sizeOfCluster;
+    merge.clusterSize = merge.pClusterSize + merge.qClusterSize;
 }
 
 //---------------------------------------------------------------------------
@@ -715,5 +781,16 @@ void ParallelUnionFind2DStripes::printGlobalUfRootsAfterFirstMerge() const
             outFile << std::endl;
         }
         outFile.close();
+    }
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::printMerges() const
+{
+    const std::size_t numOfMerges = mMerge.size();
+
+    for (std::size_t i = 0u; i < numOfMerges; ++i)
+    {
+        std::cout << "merge " << i << " p " << mMerge[i].p << " q " << mMerge[i].q << std::endl;
     }
 }

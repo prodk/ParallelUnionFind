@@ -97,12 +97,23 @@ private:
     void runUfOnGlobalLabelsAndRecordMerges();
     void runLocalUfOnGlobalLabelsToSetInitialRoots();
 
+    //TODO: rename this function!
+    void runUfOnGlobalPixelsAndRecordGlobalMerges();
+
+    void mergeClusterIds(int idq, int idp, std::tr1::shared_ptr<WeightedUnionFind> wuf) const;
+    void mergePixelsAndRecordMerge(int idq, int idp, std::tr1::shared_ptr<WeightedUnionFind> wuf,
+                                    const int pixelValue);
+    void recordMerge(const int idp, const int idq);
+
+    void fillInTheMerge(Merge & merge, const std::vector<Pixel> & pixels, const int idp, const int idq) const;
+
     // Implementation helpers.
     void printLocalExtendedPicture(const DecompositionInfo& info) const;
     void printReceivedGlobalLabels() const;
 
     void printGlobalUfRootsAfterFirstMerge() const;
-    void mergeClusterIds(int idq, int idp, std::tr1::shared_ptr<WeightedUnionFind> wuf) const;
+
+    void printMerges() const;
 
 
 private:
@@ -113,6 +124,7 @@ private:
     std::vector<int> mLocalPixels;                     // Local mesh points.
     std::map<int, int> mGlobalLabels;                  // Non-consecutive local root is a key, a consecutive global root is a value.
     std::vector<Pixel> mGlobalPixels;                  // Extended pixels.
+    std::vector<Merge> mMerge;                         // A merge of 2 clusters residing on different processors but belonging to one cluster.
 };
 
 //---------------------------------------------------------------------------

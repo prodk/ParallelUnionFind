@@ -33,10 +33,11 @@ struct DecompositionInfo
 // Records a single merge.
 struct Merge
 {
-    int p;
-    int q;
-    int rootId;
-    int clusterSize;
+    int p;                   // Root id of the 1st cluster.
+    int q;                   // Root id of the 2nd cluster.
+    int pClusterSize;        // Size of the cluster of the p root.
+    int qClusterSize;        // Size of the cluster of the q root.
+    int clusterSize;         // Size of the merged cluster.
 };
 
 //---------------------------------------------------------------------------

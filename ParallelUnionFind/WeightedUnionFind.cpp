@@ -25,26 +25,6 @@ WeightedUnionFind::WeightedUnionFind(const std::size_t N)
 }
 
 //---------------------------------------------------------------------------
-// TODO: think carefully about the roots: it might be needed to also provide them in the Pixel array.
-WeightedUnionFind::WeightedUnionFind(const std::size_t N, const std::vector<Pixel> pixelsWithGlobalLabels)
-    : mRoots()
-    , mConsecutiveRoots()
-{
-    mId.resize(N);
-    mSize.resize(N);
-
-    for (std::size_t i = 0; i < N; ++i)
-    {
-        mId[i] = pixelsWithGlobalLabels[i].globalClusterId;
-        mSize[i] = pixelsWithGlobalLabels[i].sizeOfCluster;
-        mRoots.insert(pixelsWithGlobalLabels[i].globalClusterId); // TODO: recheck this logic.
-    }
-
-    mMinClusterSize = defaultInt;
-    mMaxClusterSize = defaultInt;
-}
-
-//---------------------------------------------------------------------------
 WeightedUnionFind::~WeightedUnionFind(void)
 {
 }
@@ -92,7 +72,7 @@ int WeightedUnionFind::root(int i) const
 // Set the initial root of the vertex.
 void WeightedUnionFind::setInitialRoot(int idp)
 {
-    if (0 == mSize[idp])
+    if (mSize[idp] <= 0)
     {
         mSize[idp] = 1;        // Specify the size and the first root.
         mRoots.insert(idp);    // Put the root into the set.
