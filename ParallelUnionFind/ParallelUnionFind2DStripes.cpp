@@ -71,11 +71,13 @@ void ParallelUnionFind2DStripes::runLocalUnionFind(void)
                     const int neighbX = getNeighborNonPeriodicBC(ix, nx);   // Right neighbor without periodic boundaries.
                     if (neighbX >= 0)
                     {
-                        mergePixels(indexTo1D(neighbX, iy), idp);
+                        const int ix = indexTo1D(neighbX, iy);
+                        mergePixels(ix, idp, mLocalWuf, mLocalPixels[ix]);
                     }
 
                     const int neighbY = getNeighborPeriodicBC(iy, ny);      // Bottom neighbor with periodic boundaries.
-                    mergePixels(indexTo1D(ix, neighbY), idp);
+                    const int iy = indexTo1D(ix, neighbY);
+                    mergePixels(iy, idp, mLocalWuf, mLocalPixels[iy]);
                 }
             } // End for iy.
         } // End for ix.
@@ -172,7 +174,7 @@ void ParallelUnionFind2DStripes::mergeLabelsAcrossProcessors(void)
     copyRightColumnAndSendToRightNeighbor();
 
 #ifdef _DEBUG
-    //printLocalExtendedPicture(mDecompositionInfo);
+    printLocalExtendedPicture(mDecompositionInfo);
     printReceivedGlobalLabels();
 #endif
 
@@ -525,7 +527,7 @@ void ParallelUnionFind2DStripes::runUfOnGlobalLabelsAndRecordMerges()
     mGlobalWuf = static_cast<std::tr1::shared_ptr<WeightedUnionFind> >(new WeightedUnionFind(numOfExtendedPixels));
 
     // At first run the local UF, but merge the pixels based on their global cluster id, not the pixel value.
-    unionExtendedPixelsUsingGlobalLabels();
+    runLocalUfOnGlobalLabelsToSetInitialRoots();
 
 #ifdef _DEBUG
     printGlobalUfRootsAfterFirstMerge();
@@ -536,7 +538,7 @@ void ParallelUnionFind2DStripes::runUfOnGlobalLabelsAndRecordMerges()
 }
 
 //---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::unionExtendedPixelsUsingGlobalLabels()
+void ParallelUnionFind2DStripes::runLocalUfOnGlobalLabelsToSetInitialRoots()
 {
     // We run a local UF but on all the pixels, including the received stripe(s).
     // But clusters are identified based on the global cluster id, and not on the pixel value.
@@ -552,30 +554,40 @@ void ParallelUnionFind2DStripes::unionExtendedPixelsUsingGlobalLabels()
     {
         for (int iy = 0; iy < ny; ++iy)
         {
-            // Act only if the current pixel contains the desired value.
+            // Act only if the cluster id is valid.
             int idp = indexTo1D(ix, iy);      // Convert 2D pixel coordinates into 1D index.
-            if (mGlobalPixels[idp].globalClusterId > 0) // TODO: remove this magic condition, introduce is clusterIdValid() function.
+            if (mGlobalPixels[idp].globalClusterId >= 0) // TODO: remove this magic condition, introduce is clusterIdValid() function.
             {
                 mGlobalWuf->setInitialRoot(idp);   // Set the root and the tree size (if it was 0).
 
                 // See whether neighboring (in both directions) pixels should be merged.
                 const int neighbX = getNeighborNonPeriodicBC(ix, nx);   // Right neighbor without periodic boundaries.
-                const int idx = indexTo1D(neighbX, iy);
                 // Merge pixels only if they belong to the same cluster.
-            //    if ( (neighbX >= 0) && (mGlobalPixels[idx].globalClusterId == mGlobalPixels[idp].globalClusterId) )
-            //    {
-            //        mergePixels(idx, idp);
-            //    }
+                if (neighbX >= 0)
+                {
+                    const int idx = indexTo1D(neighbX, iy);
+                    mergeClusterIds(idx, idp, mGlobalWuf);
+                }
 
                 const int neighbY = getNeighborPeriodicBC(iy, ny);      // Bottom neighbor with periodic boundaries.
                 const int idy = indexTo1D(ix, neighbY);
-            //    if (mGlobalPixels[idy].globalClusterId == mGlobalPixels[idp].globalClusterId)
-            //    {
-            //        mergePixels(idy, idp);
-            //    }
+                mergeClusterIds(idy, idp, mGlobalWuf);
             }
         } // End for iy.
     } // End for ix.
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::mergeClusterIds(int idq, int idp, std::tr1::shared_ptr<WeightedUnionFind> wuf) const
+{
+    if (mGlobalPixels[idq].globalClusterId == mGlobalPixels[idp].globalClusterId)
+    {
+        wuf->setInitialRoot(idq);       // Specify the non-zero size (if it was 0) and init root.
+        if (!wuf->connected(idp, idq))  // Merge vertices only if they're not yet merged.
+        {
+            wuf->makeUnion(idp, idq);
+        }
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -674,7 +686,7 @@ void ParallelUnionFind2DStripes::printReceivedGlobalLabels() const
         {
             for (int ix = 0; ix < nx; ++ix)
             {
-                outFile << mGlobalPixels[indexTo1D(ix, iy)].globalClusterId;
+                outFile << mGlobalPixels[indexTo1D(ix, iy)].globalClusterId << " ";
             }
             outFile << std::endl;
         }
@@ -698,7 +710,7 @@ void ParallelUnionFind2DStripes::printGlobalUfRootsAfterFirstMerge() const
         {
             for (int ix = 0; ix < nx; ++ix)
             {
-                outFile << mGlobalWuf->getPixelRoot(indexTo1D(ix, iy));
+                outFile << mGlobalWuf->getPixelRoot(indexTo1D(ix, iy)) << " ";
             }
             outFile << std::endl;
         }

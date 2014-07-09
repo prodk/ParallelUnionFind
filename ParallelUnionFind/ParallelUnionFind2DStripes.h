@@ -34,7 +34,8 @@ private:
 private:
     void copyPixels();
     inline int indexTo1D(int ix, int iy) const;
-    inline void mergePixels(int idq, int idp);
+    inline void mergePixels(int idq, int idp, std::tr1::shared_ptr<WeightedUnionFind> wuf,
+                            const int pixelValue) const;
 
     // Stage 1 helpers.
     int getNeighborPeriodicBC(const int index, const int size) const;    // Next neighbor assuming the PBC.
@@ -94,13 +95,15 @@ private:
     bool isNeighborProcessorValid(const int rank) const;
 
     void runUfOnGlobalLabelsAndRecordMerges();
-    void unionExtendedPixelsUsingGlobalLabels();
+    void runLocalUfOnGlobalLabelsToSetInitialRoots();
 
     // Implementation helpers.
     void printLocalExtendedPicture(const DecompositionInfo& info) const;
     void printReceivedGlobalLabels() const;
 
     void printGlobalUfRootsAfterFirstMerge() const;
+    void mergeClusterIds(int idq, int idp, std::tr1::shared_ptr<WeightedUnionFind> wuf) const;
+
 
 private:
     std::size_t mNumOfPixels;
@@ -119,14 +122,15 @@ inline int ParallelUnionFind2DStripes::indexTo1D(int ix, int iy) const
 }
 
 //---------------------------------------------------------------------------
-inline void ParallelUnionFind2DStripes::mergePixels(int idq, int idp)
+inline void ParallelUnionFind2DStripes::mergePixels(int idq, int idp, std::tr1::shared_ptr<WeightedUnionFind> wuf,
+                                                    const int pixelValue) const
 {
-    if (mDecompositionInfo.pixelValue == mLocalPixels[idq])
+    if (mDecompositionInfo.pixelValue == pixelValue)
     {
-        mLocalWuf->setInitialRoot(idq);       // Specify the non-zero size (if it was 0) and init root.
-        if (!mLocalWuf->connected(idp, idq))  // Merge vertices only if they're not yet merged.
+        wuf->setInitialRoot(idq);       // Specify the non-zero size (if it was 0) and init root.
+        if (!wuf->connected(idp, idq))  // Merge vertices only if they're not yet merged.
         {
-            mLocalWuf->makeUnion(idp, idq);
+            wuf->makeUnion(idp, idq);
         }
     }
 }
