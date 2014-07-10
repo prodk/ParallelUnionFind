@@ -46,7 +46,7 @@ private:
     void sendTotalClustersToNextProcs(const int numOfClustersOnSmallerProcIds, const int numOfMyClusters) const;
 
     // Stage 3 helpers.
-    void setLocalPartOfGloblaPixels(void); // TODO: rename this function (see implementation for why).
+    void initializeGloblaPixels(void);
 
     // TODO: think about refactoring of left/right stripes to avoid code duplication.
     // TODO: encapsulate this sending/receiving code into a strategy class.

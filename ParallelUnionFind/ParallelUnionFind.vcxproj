@@ -86,6 +86,7 @@
     <ClCompile Include="ParallelUnionFind2DStripes.cpp" />
     <ClCompile Include="ParallelUnionFindFactory.cpp" />
     <ClCompile Include="ParallelUnionFindImpl.cpp" />
+    <ClCompile Include="SendColumnStrategy.cpp" />
     <ClCompile Include="TestParallelUnionFind.cpp" />
     <ClCompile Include="WeightedUnionFind.cpp" />
   </ItemGroup>
@@ -94,6 +95,7 @@
     <ClInclude Include="ParallelUnionFind2DStripes.h" />
     <ClInclude Include="ParallelUnionFindFactory.h" />
     <ClInclude Include="ParallelUnionFindImpl.h" />
+    <ClInclude Include="SendColumnStrategy.h" />
     <ClInclude Include="TestParallelUnionFind.h" />
     <ClInclude Include="WeightedUnionFind.h" />
   </ItemGroup>

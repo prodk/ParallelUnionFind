@@ -168,7 +168,7 @@ void ParallelUnionFind2DStripes::mergeLabelsAcrossProcessors(void)
 
     // Copy the data from the localWuf to the array.
     // Setup the global pixels. Note: first/last columns are not empty.
-    setLocalPartOfGloblaPixels();
+    initializeGloblaPixels();
 
     copyLeftColumnAndSendToLeftNeighbor();
 
@@ -186,7 +186,7 @@ void ParallelUnionFind2DStripes::mergeLabelsAcrossProcessors(void)
 
 //---------------------------------------------------------------------------
 // TODO: rename this function or factor out the code for the first/last stripes.
-void ParallelUnionFind2DStripes::setLocalPartOfGloblaPixels(void)
+void ParallelUnionFind2DStripes::initializeGloblaPixels(void)
 {
     if (0 != mDecompositionInfo.pixels)
     {
