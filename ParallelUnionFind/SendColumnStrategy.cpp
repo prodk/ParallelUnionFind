@@ -3,15 +3,35 @@
 #include "SendColumnStrategy.h"
 #include "ParallelUnionFindImpl.h"
 
-SendColumnStrategy::SendColumnStrategy(const DecompositionInfo & decompositionInfo, std::vector<Pixel> & pixels)
+SendColumnStrategy::SendColumnStrategy(const DecompositionInfo & decompositionInfo,
+                                       const std::vector<int> & localPixels,
+                                       const std::vector<Pixel> & globalPixels,
+                                       const std::tr1::shared_ptr<WeightedUnionFind> & localWuf,
+                                       std::map<int, int> & globalLabels)
     : mDecompositionInfo(decompositionInfo)
-    , mGlobalPixels(pixels)
+    , mLocalPixels(localPixels)
+    , mGlobalPixels(globalPixels)
+    , mLocalWuf(localWuf)
+    , mGlobalLabels(globalLabels)
 {
 }
 
-
+//---------------------------------------------------------------------------
 SendColumnStrategy::~SendColumnStrategy(void)
 {
+}
+
+//---------------------------------------------------------------------------
+void SendColumnStrategy::sendReceivePixelStripes(std::vector<Pixel> & globalPixels)
+{
+    SPixelStripe stripeToSend(mDecompositionInfo.domainHeight);
+    copyPixelStripeToSend(stripeToSend);
+
+    SPixelStripe stripeToReceive(mDecompositionInfo.domainHeight);
+    sendStripeFromEvenReceiveOnOdd(stripeToSend, stripeToReceive);
+    sendStripeFromOddReceiveOnEven(stripeToSend, stripeToReceive);
+
+    saveReceivedStripe(stripeToReceive, globalPixels);
 }
 
 //---------------------------------------------------------------------------
@@ -29,11 +49,11 @@ int SendColumnStrategy::getLeftNeighborProcessor() const
         }
         else
         {
-            return -1; // TODO: get rid of magic numbers, use enum hack instead.
+            return INVALID_VALUE; // TODO: get rid of magic numbers, use enum hack instead.
         }
     }
 
-    return -1; // TODO: get rid of magic numbers, use enum hack instead.
+    return INVALID_VALUE; // TODO: get rid of magic numbers, use enum hack instead.
 }
 
 //---------------------------------------------------------------------------
@@ -51,15 +71,15 @@ int SendColumnStrategy::getRightNeighborProcessor() const
         }
         else
         {
-            return -1; // TODO: get rid of magic numbers, use enum hack instead.
+            return INVALID_VALUE; // TODO: get rid of magic numbers, use enum hack instead.
         }
     }
 
-    return -1; // TODO: get rid of magic numbers, use enum hack instead.
+    return INVALID_VALUE; // TODO: get rid of magic numbers, use enum hack instead.
 }
 
 //---------------------------------------------------------------------------
 bool SendColumnStrategy::isNeighborProcessorValid(const int rank) const
 {
-    return (rank >= 0);
+    return (rank >= BOSS);
 }

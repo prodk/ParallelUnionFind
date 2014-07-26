@@ -39,6 +39,9 @@
     <ClCompile Include="SendColumnStrategy.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SendLeftColumnStrategy.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ParallelUnionFind.h">
@@ -60,6 +63,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SendColumnStrategy.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SendLeftColumnStrategy.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -87,6 +87,7 @@
     <ClCompile Include="ParallelUnionFindFactory.cpp" />
     <ClCompile Include="ParallelUnionFindImpl.cpp" />
     <ClCompile Include="SendColumnStrategy.cpp" />
+    <ClCompile Include="SendLeftColumnStrategy.cpp" />
     <ClCompile Include="TestParallelUnionFind.cpp" />
     <ClCompile Include="WeightedUnionFind.cpp" />
   </ItemGroup>
@@ -96,6 +97,7 @@
     <ClInclude Include="ParallelUnionFindFactory.h" />
     <ClInclude Include="ParallelUnionFindImpl.h" />
     <ClInclude Include="SendColumnStrategy.h" />
+    <ClInclude Include="SendLeftColumnStrategy.h" />
     <ClInclude Include="TestParallelUnionFind.h" />
     <ClInclude Include="WeightedUnionFind.h" />
   </ItemGroup>

@@ -53,6 +53,7 @@ private:
     // At the moment I decided to hard code this for performance/clarity reasons.
     void copyLeftColumnAndSendToLeftNeighbor(void);
 
+    // TODO: remove this struct when the strategies work.
     // A helper data structure containing attributes of the pixel stripe sent between processors.
     struct SPixelStripe
     {
@@ -125,6 +126,8 @@ private:
     std::map<int, int> mGlobalLabels;                  // Non-consecutive local root is a key, a consecutive global root is a value.
     std::vector<Pixel> mGlobalPixels;                  // Extended pixels.
     std::vector<Merge> mMerge;                         // A merge of 2 clusters residing on different processors but belonging to one cluster.
+
+    enum {INVALID_VALUE = -1, BOSS};
 };
 
 //---------------------------------------------------------------------------
