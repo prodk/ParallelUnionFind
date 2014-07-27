@@ -47,10 +47,6 @@ private:
 
     // Stage 3 helpers.
     void initializeGloblaPixels(void);
-
-    // TODO: think about refactoring of left/right stripes to avoid code duplication.
-    // TODO: encapsulate this sending/receiving code into a strategy class.
-    // At the moment I decided to hard code this for performance/clarity reasons.
     void copyLeftColumnAndSendToLeftNeighbor(void);
 
     // TODO: remove this struct when the strategies work.
@@ -68,16 +64,6 @@ private:
         {}
     };
 
-    void copyLeftPixelStripeToSend(SPixelStripe & stripeToSend);
-
-    void sendLeftStripeFromEvenReceiveOnOdd(SPixelStripe & stripeToSend, SPixelStripe & stripeToReceive) const;
-    void sendLeftStripeFromOddReceiveOnEven(SPixelStripe & stripeToSend, SPixelStripe & stripeToReceive) const;
-
-    void sendLeftStripe(SPixelStripe & stripeToSend, const int msgId[], const int size) const;
-    void receiveLeftStripe(SPixelStripe & stripeToReceive, const int msgId[], const int size) const;
-
-    void saveReceivedStripeToRightStripe(const SPixelStripe & stripeToReceive);
-
     // Coping with the right stripe.
     void copyRightColumnAndSendToRightNeighbor(void);
     void copyRightPixelStripeToSend(SPixelStripe & stripeToSend);
@@ -91,8 +77,11 @@ private:
     void saveReceivedStripeToLeftStripe(const SPixelStripe & stripeToReceive);
 
     // Used both for left/right stripes
+    // TODO: remove this.
     int getLeftNeighborProcessor() const;      // Periodic BCs are taken into account via DecompositionInfo.
+    // TODO: remove this.
     int getRightNeighborProcessor() const;     // Periodic BCs are taken into account via DecompositionInfo.
+    // TODO: remove this.
     bool isNeighborProcessorValid(const int rank) const;
 
     void runUfOnGlobalLabelsAndRecordMerges();
@@ -107,6 +96,10 @@ private:
     void recordMerge(const int idp, const int idq);
 
     void fillInTheMerge(Merge & merge, const std::vector<Pixel> & pixels, const int idp, const int idq) const;
+
+    bool isNeighborPixelValid(const int pixel) const;
+
+    // Stage 4 helpers.
 
     // Implementation helpers.
     void printLocalExtendedPicture(const DecompositionInfo& info) const;
