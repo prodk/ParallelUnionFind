@@ -48,42 +48,9 @@ private:
     // Stage 3 helpers.
     void initializeGloblaPixels(void);
     void copyLeftColumnAndSendToLeftNeighbor(void);
-
-    // TODO: remove this struct when the strategies work.
-    // A helper data structure containing attributes of the pixel stripe sent between processors.
-    struct SPixelStripe
-    {
-        std::vector<int> pixelValue;
-        std::vector<int> globalClusterId;
-        std::vector<int> sizeOfCluster;
-
-        explicit SPixelStripe(size_t size)
-            : pixelValue(size)
-            , globalClusterId(size)
-            , sizeOfCluster(size)
-        {}
-    };
-
-    // Coping with the right stripe.
     void copyRightColumnAndSendToRightNeighbor(void);
-    void copyRightPixelStripeToSend(SPixelStripe & stripeToSend);
 
-    void sendRightStripeFromEvenReceiveOnOdd(SPixelStripe & stripeToSend, SPixelStripe & stripeToReceive) const;
-    void sendRightStripeFromOddReceiveOnEven(SPixelStripe & stripeToSend, SPixelStripe & stripeToReceive) const;
-
-    void sendRightStripe(SPixelStripe & stripeToSend, const int msgId[], const int size) const;
-    void receiveRightStripe(SPixelStripe & stripeToReceive, const int msgId[], const int size) const;
-
-    void saveReceivedStripeToLeftStripe(const SPixelStripe & stripeToReceive);
-
-    // Used both for left/right stripes
-    // TODO: remove this.
-    int getLeftNeighborProcessor() const;      // Periodic BCs are taken into account via DecompositionInfo.
-    // TODO: remove this.
-    int getRightNeighborProcessor() const;     // Periodic BCs are taken into account via DecompositionInfo.
-    // TODO: remove this.
-    bool isNeighborProcessorValid(const int rank) const;
-
+    // TODO: rename this function to differentiate it from runUfOnGlobalPixelsAndRecordGlobalMerges()
     void runUfOnGlobalLabelsAndRecordMerges();
     void runLocalUfOnGlobalLabelsToSetInitialRoots();
 

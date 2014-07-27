@@ -19,6 +19,7 @@ SendRightColumnStrategy::SendRightColumnStrategy(const DecompositionInfo & decom
 SendRightColumnStrategy::~SendRightColumnStrategy(void)
 {
 }
+
 //---------------------------------------------------------------------------
 void SendRightColumnStrategy::copyPixelStripeToSend(SPixelStripe & stripeToSend) const
 {

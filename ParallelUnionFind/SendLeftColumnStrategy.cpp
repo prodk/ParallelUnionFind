@@ -47,8 +47,8 @@ void SendLeftColumnStrategy::copyPixelStripeToSend(SPixelStripe & stripeToSend) 
 // sendLeftStripeFromEvenReceiveOnOdd
 void SendLeftColumnStrategy::sendStripeFromEvenReceiveOnOdd(SPixelStripe & stripeToSend, SPixelStripe & stripeToReceive) const
 {
-    const int numOfSends = NUM_OF_SENDS;                 // TODO: get rid of magic numbers, perhaps use sizeof(stripeToSend)/sizeof(stripeToSend.clusterId).
-    const int msgId[numOfSends] = { MSG_1, MSG_2, MSG_3 };   // TODO: get rid of magic numbers.
+    const int numOfSends = NUM_OF_SENDS;
+    const int msgId[numOfSends] = { MSG_1, MSG_2, MSG_3 };
     if (0 == (mDecompositionInfo.myRank % 2))
     {
         sendLeftStripe(stripeToSend, msgId, numOfSends);
@@ -63,8 +63,8 @@ void SendLeftColumnStrategy::sendStripeFromEvenReceiveOnOdd(SPixelStripe & strip
 // sendLeftStripeFromOddReceiveOnEven
 void SendLeftColumnStrategy::sendStripeFromOddReceiveOnEven(SPixelStripe & stripeToSend, SPixelStripe & stripeToReceive) const
 {
-    const int numOfSends = NUM_OF_SENDS;                 // TODO: get rid of magic numbers, perhaps use sizeof(stripeToSend)/sizeof(stripeToSend.clusterId).
-    const int msgId[numOfSends] = { MSG_1, MSG_2, MSG_3 };   // TODO: get rid of magic numbers.
+    const int numOfSends = NUM_OF_SENDS;
+    const int msgId[numOfSends] = { MSG_1, MSG_2, MSG_3 };
     if (0 != (mDecompositionInfo.myRank % 2))
     {
         sendLeftStripe(stripeToSend, msgId, numOfSends);

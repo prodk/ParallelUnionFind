@@ -169,7 +169,7 @@ void ParallelUnionFind2DStripes::mergeLabelsAcrossProcessors(void)
     mGlobalPixels.resize(mNumOfGlobalPixels);
 
     // Copy the data from the localWuf to the array.
-    // Setup the global pixels. Note: first/last columns are not empty.
+    // Setup the global pixels. Note: first/last columns are not empty (i.e. they don't contain garbage).
     initializeGloblaPixels();
 
     copyLeftColumnAndSendToLeftNeighbor();
@@ -236,181 +236,12 @@ void ParallelUnionFind2DStripes::copyLeftColumnAndSendToLeftNeighbor(void)
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::copyRightColumnAndSendToRightNeighbor(void)
 {
-    // TODO: replace by SendRightColumnStrategy rightCS; rightCS.sendReceivePixelStripe(mGlobalPixels);
     SendRightColumnStrategy rightColumn(mDecompositionInfo, mLocalPixels, mGlobalPixels, mLocalWuf, mGlobalLabels);
     rightColumn.sendReceivePixelStripes(mGlobalPixels);
-
-    // ORIGINAL CODE
-    /*SPixelStripe stripeToSend(mDecompositionInfo.domainHeight);
-    copyRightPixelStripeToSend(stripeToSend);
-    
-    SPixelStripe stripeToReceive(mDecompositionInfo.domainHeight);
-    sendRightStripeFromEvenReceiveOnOdd(stripeToSend, stripeToReceive);
-    sendRightStripeFromOddReceiveOnEven(stripeToSend, stripeToReceive);
-
-    saveReceivedStripeToLeftStripe(stripeToReceive);*/
-    // ORIGINAL CODE END
 }
 
 //---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::copyRightPixelStripeToSend(SPixelStripe & stripeToSend)
-{
-    const int lastStripeStart = (mDecompositionInfo.domainWidth - 1)*mDecompositionInfo.domainHeight;
-    for (std::size_t iy = 0; iy < mDecompositionInfo.domainHeight; ++iy)
-    {
-        const int lastStripeId = iy + lastStripeStart;
-        stripeToSend.pixelValue[iy] = mLocalPixels[lastStripeId];
-
-        // Set attributes only of those pixels that have the desired value.
-        if (mDecompositionInfo.pixelValue == stripeToSend.pixelValue[iy])
-        {
-            const int pixelRoot = mLocalWuf->getPixelRoot(lastStripeId);
-            stripeToSend.globalClusterId[iy] = mGlobalLabels[pixelRoot];
-            stripeToSend.sizeOfCluster[iy] = mLocalWuf->getClusterSize(pixelRoot);
-        }
-        else
-        {
-            stripeToSend.globalClusterId[iy] = -1;
-            stripeToSend.sizeOfCluster[iy] = -1;
-        }
-    }
-}
-
-//---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::sendRightStripeFromEvenReceiveOnOdd( SPixelStripe & stripeToSend, SPixelStripe & stripeToReceive) const
-{
-    const int numOfSends = 3;                 // TODO: get rid of magic numbers, perhaps use sizeof(stripeToSend)/sizeof(stripeToSend.clusterId).
-    const int msgId[numOfSends] = { 123, 456, 789 };   // TODO: get rid of magic numbers.
-    if (0 == (mDecompositionInfo.myRank % 2))
-    {
-        sendRightStripe(stripeToSend, msgId, numOfSends);
-    }
-    else
-    {
-        receiveRightStripe(stripeToReceive, msgId, numOfSends);
-    }
-}
-
-//---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::sendRightStripeFromOddReceiveOnEven(SPixelStripe & stripeToSend, SPixelStripe & stripeToReceive) const
-{
-    const int numOfSends = 3;                 // TODO: get rid of magic numbers, perhaps use sizeof(stripeToSend)/sizeof(stripeToSend.clusterId).
-    const int msgId[numOfSends] = { 123, 456, 789 };   // TODO: get rid of magic numbers.
-    if (0 != (mDecompositionInfo.myRank % 2))
-    {
-        sendRightStripe(stripeToSend, msgId, numOfSends);
-    }
-    else
-    {
-        receiveRightStripe(stripeToReceive, msgId, numOfSends);
-    }
-}
-
-//---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::sendRightStripe(SPixelStripe & stripeToSend, const int msgId[], const int size) const
-{
-    const int procToSendTo = getRightNeighborProcessor(); // Periodic BCs are taken into account.
-    if ( isNeighborProcessorValid(procToSendTo) )
-    {
-        MPI_Send(&stripeToSend.pixelValue[0], mDecompositionInfo.domainHeight, MPI_INT, procToSendTo, msgId[0], MPI_COMM_WORLD);
-        MPI_Send(&stripeToSend.globalClusterId[0], mDecompositionInfo.domainHeight, MPI_INT, procToSendTo, msgId[1], MPI_COMM_WORLD);
-        MPI_Send(&stripeToSend.sizeOfCluster[0], mDecompositionInfo.domainHeight, MPI_INT, procToSendTo, msgId[2], MPI_COMM_WORLD);
-    }
-}
-
-//---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::receiveRightStripe(SPixelStripe & stripeToReceive, const int msgId[], const int size) const
-{
-    MPI_Status mpiStatus = {0};
-    
-    const int procToReceiveFrom = getLeftNeighborProcessor(); // Periodic BCs are taken into account.
-    if ( isNeighborProcessorValid(procToReceiveFrom) )
-    {
-        MPI_Recv(&stripeToReceive.pixelValue[0], mDecompositionInfo.domainHeight, MPI_INT,
-                 procToReceiveFrom, msgId[0], MPI_COMM_WORLD, &mpiStatus);
-        MPI_Recv(&stripeToReceive.globalClusterId[0], mDecompositionInfo.domainHeight, MPI_INT,
-                 procToReceiveFrom, msgId[1], MPI_COMM_WORLD, &mpiStatus);
-        MPI_Recv(&stripeToReceive.sizeOfCluster[0], mDecompositionInfo.domainHeight, MPI_INT,
-                 procToReceiveFrom, msgId[2], MPI_COMM_WORLD, &mpiStatus);
-    }
-}
-
-//---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::saveReceivedStripeToLeftStripe(const SPixelStripe & stripeToReceive)
-{
-    // Check whether we participated in receiving the stripe.
-    const int procToReceiveFrom = getLeftNeighborProcessor(); // Periodic BCs are taken into account.
-    if ( isNeighborProcessorValid(procToReceiveFrom) )
-    {
-        for (std::size_t iy = 0; iy < mDecompositionInfo.domainHeight; ++iy)
-        {
-            mGlobalPixels[iy].pixelValue = stripeToReceive.pixelValue[iy];
-            mGlobalPixels[iy].globalClusterId = stripeToReceive.globalClusterId[iy];
-            mGlobalPixels[iy].sizeOfCluster = stripeToReceive.sizeOfCluster[iy];
-        }
-    }
-}
-
-// TODO: remove this function.
-//---------------------------------------------------------------------------
-int ParallelUnionFind2DStripes::getLeftNeighborProcessor() const
-{
-    if (mDecompositionInfo.periodicBoundaryX)
-    {
-        return (mDecompositionInfo.myRank - 1) % mDecompositionInfo.numOfProc;
-    }
-    else
-    {
-        if (mDecompositionInfo.myRank > 0)
-        {
-            return mDecompositionInfo.myRank - 1;
-        }
-        else
-        {
-            return -1; // TODO: get rid of magic numbers, use enum hack instead.
-        }
-    }
-
-    return -1; // TODO: get rid of magic numbers, use enum hack instead.
-}
-
-// TODO: remove this function.
-//---------------------------------------------------------------------------
-int ParallelUnionFind2DStripes::getRightNeighborProcessor() const
-{
-    if (mDecompositionInfo.periodicBoundaryX)
-    {
-        return (mDecompositionInfo.myRank + 1) % mDecompositionInfo.numOfProc;
-    }
-    else
-    {
-        if (mDecompositionInfo.myRank < mDecompositionInfo.numOfProc - 1)
-        {
-            return mDecompositionInfo.myRank + 1;
-        }
-        else
-        {
-            return -1; // TODO: get rid of magic numbers, use enum hack instead.
-        }
-    }
-
-    return -1; // TODO: get rid of magic numbers, use enum hack instead.
-}
-
-// TODO: remove this function.
-//---------------------------------------------------------------------------
-bool ParallelUnionFind2DStripes::isNeighborProcessorValid(const int rank) const
-{
-    return (rank >= 0);
-}
-
-//---------------------------------------------------------------------------
-bool ParallelUnionFind2DStripes::isNeighborPixelValid(const int pixel) const
-{
-    return (pixel != INVALID_VALUE);
-}
-
-//---------------------------------------------------------------------------
+// TODO: rename this function to differentiate it from runUfOnGlobalPixelsAndRecordGlobalMerges()
 void ParallelUnionFind2DStripes::runUfOnGlobalLabelsAndRecordMerges()
 {
     // We use the same extended width even when there are no periodic BCs.
@@ -426,8 +257,6 @@ void ParallelUnionFind2DStripes::runUfOnGlobalLabelsAndRecordMerges()
     printGlobalUfRootsAfterFirstMerge();
 #endif
 
-
-    // TODO: run the global UF here and record their merges (if any).
     runUfOnGlobalPixelsAndRecordGlobalMerges();
 
     printMerges();
@@ -487,7 +316,6 @@ void ParallelUnionFind2DStripes::mergeClusterIds(int idq, int idp, std::tr1::sha
 }
 
 //---------------------------------------------------------------------------
-//TODO: rename this function!
 void ParallelUnionFind2DStripes::runUfOnGlobalPixelsAndRecordGlobalMerges()
 {
     // Run the local UF again on the extended pixels.
@@ -503,6 +331,7 @@ void ParallelUnionFind2DStripes::runUfOnGlobalPixelsAndRecordGlobalMerges()
     {
         for (int iy = 0; iy < ny; ++iy)
         {
+            // TODO: recheck this logic because still the same merges are recorded several times.
             // Act only if the cluster id is valid.
             int idp = indexTo1D(ix, iy);      // Convert 2D pixel coordinates into 1D index.
             if (mDecompositionInfo.pixelValue == mGlobalPixels[idp].pixelValue)
@@ -560,6 +389,12 @@ void ParallelUnionFind2DStripes::fillInTheMerge(Merge & merge, const std::vector
     merge.pClusterSize = pixels[idp].sizeOfCluster;
     merge.qClusterSize = pixels[idq].sizeOfCluster;
     merge.clusterSize = merge.pClusterSize + merge.qClusterSize;
+}
+
+//---------------------------------------------------------------------------
+bool ParallelUnionFind2DStripes::isNeighborPixelValid(const int pixel) const
+{
+    return (pixel != INVALID_VALUE);
 }
 
 //---------------------------------------------------------------------------
