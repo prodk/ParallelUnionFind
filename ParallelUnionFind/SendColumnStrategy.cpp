@@ -3,6 +3,7 @@
 #include "SendColumnStrategy.h"
 #include "ParallelUnionFindImpl.h"
 
+//---------------------------------------------------------------------------
 SendColumnStrategy::SendColumnStrategy(const DecompositionInfo & decompositionInfo,
                                        const std::vector<int> & localPixels,
                                        const std::vector<Pixel> & globalPixels,

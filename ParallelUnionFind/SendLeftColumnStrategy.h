@@ -5,6 +5,7 @@
 
 #include "SendColumnStrategy.h"
 
+//---------------------------------------------------------------------------
 class SendLeftColumnStrategy : public SendColumnStrategy
 {
 public:
@@ -22,11 +23,9 @@ private:
     void sendStripeFromOddReceiveOnEven(SPixelStripe & stripeToSend, SPixelStripe & stripeToReceive) const;
     void saveReceivedStripe(const SPixelStripe & stripeToReceive, std::vector<Pixel> & globalPixels) const;
 
-    // Helper methods.
+    // Helpers.
     void sendLeftStripe(SPixelStripe & stripeToSend, const int msgId[], const int size) const;
     void receiveLeftStripe(SPixelStripe & stripeToReceive, const int msgId[], const int size) const;
-
-    enum {NUM_OF_SENDS = 3, MSG_1 =123, MSG_2 = 456, MSG_3 = 789};
 };
 
 #endif // SEND_LEFT_COLUMN_STRATEGY

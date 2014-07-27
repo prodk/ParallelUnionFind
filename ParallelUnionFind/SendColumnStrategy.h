@@ -60,7 +60,7 @@ protected:
     std::map<int, int> & mGlobalLabels;        // This reference is not modified, so should have been const.
                                                // But if it is const we cannot use [] operator. So I left it non-const.
 
-    enum {INVALID_VALUE = -1, BOSS};
+    enum {INVALID_VALUE = -1, BOSS = 0, NUM_OF_SENDS = 3, MSG_1 =123, MSG_2 = 456, MSG_3 = 789};
 };
 
 #endif // SEND_COLUMN_STRATEGY

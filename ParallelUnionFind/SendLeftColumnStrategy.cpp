@@ -5,6 +5,7 @@
 #include "ParallelUnionFindImpl.h"
 #include <mpi.h>
 
+//---------------------------------------------------------------------------
 SendLeftColumnStrategy::SendLeftColumnStrategy(const DecompositionInfo & decompositionInfo,
                                                const std::vector<int> & localPixels,
                                                const std::vector<Pixel> & globalPixels,

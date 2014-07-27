@@ -1,6 +1,7 @@
 // ParallelUnionFind2DStripes.cpp - implementation of the ParallelUnionFind2DStripes class
 #include "ParallelUnionFind2DStripes.h"
 #include "SendLeftColumnStrategy.h"
+#include "SendRightColumnStrategy.h"
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -236,18 +237,18 @@ void ParallelUnionFind2DStripes::copyLeftColumnAndSendToLeftNeighbor(void)
 void ParallelUnionFind2DStripes::copyRightColumnAndSendToRightNeighbor(void)
 {
     // TODO: replace by SendRightColumnStrategy rightCS; rightCS.sendReceivePixelStripe(mGlobalPixels);
-    /*SendRightColumnStrategy rightColumn(mDecompositionInfo, mLocalPixels, mGlobalPixels, mLocalWuf, mGlobalLabels);
-    rightColumn.sendReceivePixelStripes(mGlobalPixels);*/
+    SendRightColumnStrategy rightColumn(mDecompositionInfo, mLocalPixels, mGlobalPixels, mLocalWuf, mGlobalLabels);
+    rightColumn.sendReceivePixelStripes(mGlobalPixels);
 
     // ORIGINAL CODE
-    SPixelStripe stripeToSend(mDecompositionInfo.domainHeight);
+    /*SPixelStripe stripeToSend(mDecompositionInfo.domainHeight);
     copyRightPixelStripeToSend(stripeToSend);
     
     SPixelStripe stripeToReceive(mDecompositionInfo.domainHeight);
     sendRightStripeFromEvenReceiveOnOdd(stripeToSend, stripeToReceive);
     sendRightStripeFromOddReceiveOnEven(stripeToSend, stripeToReceive);
 
-    saveReceivedStripeToLeftStripe(stripeToReceive);
+    saveReceivedStripeToLeftStripe(stripeToReceive);*/
     // ORIGINAL CODE END
 }
 
