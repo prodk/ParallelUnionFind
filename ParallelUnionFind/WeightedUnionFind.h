@@ -17,6 +17,17 @@ struct Pixel
 };
 
 //---------------------------------------------------------------------------
+namespace Common
+{
+    // Non-member non-friend function to add one vector to the end of another.
+    template <typename T>
+    void addOneVectorToAnother (std::vector<T> & mainVector, std::vector<T> & toAdd)
+    {
+        mainVector.insert(mainVector.end(), toAdd.begin(), toAdd.end());
+    }
+}
+
+//---------------------------------------------------------------------------
 class WeightedUnionFind
 {
 public:

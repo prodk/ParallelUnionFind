@@ -15,6 +15,7 @@ ParallelUnionFind2DStripes::ParallelUnionFind2DStripes(const DecompositionInfo& 
     , mLocalWuf(new WeightedUnionFind(mNumOfPixels))
     , mGlobalWuf()
     , mMerge()
+    , mAllMerges()
 {
     if (mDecompositionInfo.numOfProc <= 0)
     {
@@ -135,7 +136,7 @@ int ParallelUnionFind2DStripes::receiveNumberOfClustersFromPreviousProcs() const
     int numOfClusters = 0;
 
     // Receive the number of clusters located on the processors with ids smaller than ours.
-    const int msgId = 1;
+    const int msgId = MSG_1;
     MPI_Status mpiStatus;
 
     // Root doesn't receive anything, its offset is 0. The root initiates sending.
@@ -153,7 +154,7 @@ void ParallelUnionFind2DStripes::sendTotalClustersToNextProcs(const int numOfClu
 {
     int offsetForTheNextProcessor = numOfClustersOnSmallerProcIds + numOfMyClusters;
 
-    const int msgId = 1;
+    const int msgId = MSG_1;
     if (mDecompositionInfo.myRank < mDecompositionInfo.numOfProc - 1) // Exclude the last processor from sending.
     {
         const int sendToProc = mDecompositionInfo.myRank + 1;
@@ -182,7 +183,7 @@ void ParallelUnionFind2DStripes::mergeLabelsAcrossProcessors(void)
 #endif
 
     // Run UF on the global UF and record the merges that happen.
-    runUfOnGlobalLabelsAndRecordMerges();
+    runUfOnGlobalLabels();
 }
 
 //---------------------------------------------------------------------------
@@ -241,8 +242,7 @@ void ParallelUnionFind2DStripes::copyRightColumnAndSendToRightNeighbor(void)
 }
 
 //---------------------------------------------------------------------------
-// TODO: rename this function to differentiate it from runUfOnGlobalPixelsAndRecordGlobalMerges()
-void ParallelUnionFind2DStripes::runUfOnGlobalLabelsAndRecordMerges()
+void ParallelUnionFind2DStripes::runUfOnGlobalLabels()
 {
     // We use the same extended width even when there are no periodic BCs.
     // In the latter case the pixels of the boundary stripes contain -1 and are don't contribute to clusters.
@@ -275,15 +275,15 @@ void ParallelUnionFind2DStripes::runLocalUfOnGlobalLabelsToSetInitialRoots()
     const int nx = mDecompositionInfo.domainWidth + 2;
     const int ny = mDecompositionInfo.domainHeight;
 
-    for (int ix = 0; ix < nx; ++ix)                // Loop through the pixels, columns fastest.
+    for (int ix = 0; ix < nx; ++ix)                      // Loop through the pixels, columns fastest.
     {
         for (int iy = 0; iy < ny; ++iy)
         {
             // Act only if the cluster id is valid.
-            int idp = indexTo1D(ix, iy);      // Convert 2D pixel coordinates into 1D index.
-            if (mGlobalPixels[idp].globalClusterId >= 0) // TODO: remove this magic condition, introduce is clusterIdValid() function.
+            int idp = indexTo1D(ix, iy);                 // Convert 2D pixel coordinates into 1D index.
+            if ( isClusterIdValid(idp) )
             {
-                mGlobalWuf->setInitialRoot(idp);   // Set the root and the tree size (if it was 0).
+                mGlobalWuf->setInitialRoot(idp);         // Set the root and the tree size (if it was 0).
 
                 // See whether neighboring (in both directions) pixels should be merged.
                 const int neighbX = getNeighborNonPeriodicBC(ix, nx);   // Right neighbor without periodic boundaries.
@@ -375,20 +375,11 @@ void ParallelUnionFind2DStripes::mergePixelsAndRecordMerge(int idq, int idp, std
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::recordMerge(const int idp, const int idq)
 {
-    Merge merge;
-    fillInTheMerge(merge, mGlobalPixels, idp, idq);
-
-    mMerge.push_back(merge);
-}
-
-//---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::fillInTheMerge(Merge & merge, const std::vector<Pixel> & pixels, const int idp, const int idq) const
-{
-    merge.p = pixels[idp].globalClusterId;
-    merge.q = pixels[idq].globalClusterId;
-    merge.pClusterSize = pixels[idp].sizeOfCluster;
-    merge.qClusterSize = pixels[idq].sizeOfCluster;
-    merge.clusterSize = merge.pClusterSize + merge.qClusterSize;
+    mMerge.p.push_back(mGlobalPixels[idp].globalClusterId);
+    mMerge.q.push_back(mGlobalPixels[idq].globalClusterId);
+    mMerge.pClusterSize.push_back(mGlobalPixels[idp].sizeOfCluster);
+    mMerge.qClusterSize.push_back(mGlobalPixels[idq].sizeOfCluster);
+    mMerge.clusterSize.push_back(mGlobalPixels[idp].sizeOfCluster + mGlobalPixels[idq].sizeOfCluster);
 }
 
 //---------------------------------------------------------------------------
@@ -398,9 +389,103 @@ bool ParallelUnionFind2DStripes::isNeighborPixelValid(const int pixel) const
 }
 
 //---------------------------------------------------------------------------
+bool ParallelUnionFind2DStripes::isClusterIdValid(const int pixel) const
+{
+    return (mGlobalPixels[pixel].globalClusterId > INVALID_VALUE);
+}
+
+//---------------------------------------------------------------------------
 // Stage 4.
 void ParallelUnionFind2DStripes::performFinalLabelingOfClusters(void)
 {
+    // Broadcast each processor's merges that we've just recorded.
+    getMergesFromAllProcs();
+
+    // N - the total number of labels over all processors
+    // Create a global UF with N entries with a default label
+
+    // Replay all the unions from the global union list
+
+    // Transform the local labels of islands to the global ones using the global UF
+
+    // Transform the final labeling so that the labels range from 0 to Nc-1
+    // where Nc - the total number of connected components
+
+}
+
+void ParallelUnionFind2DStripes::getMergesFromAllProcs()
+{
+    // Take into account the merges that reside on the current processor.
+    copyOurMergeToAllMerges();
+
+    // Perform all-to-all communications to send our mMerge and to get merges from all other processors.
+    for (int root = 0; root < mDecompositionInfo.numOfProc; ++root)
+    {
+        int numOfMerges = 0;
+        if (mDecompositionInfo.myRank == root)
+        {
+            numOfMerges = static_cast<int>(mMerge.p.size()); // Number of merges to send for the appropriate processor.
+        }
+
+        // Send/receive the number of merges.
+        MPI_Bcast(&numOfMerges, 1, MPI_INT, root, MPI_COMM_WORLD);
+
+#ifdef _DEBUG
+        std::cout << "proc " << root << " numOfMerges " << numOfMerges << std::endl;
+#endif
+
+        // Having send/received the number of merges, we can send/receive the actual info about them
+        if (mDecompositionInfo.myRank == root)
+        {
+            sendOurMergeToAllProcs(numOfMerges, root);
+        }
+        else
+        {
+            receiveMergeFromRoot(numOfMerges, root);
+        }
+    } // end for (root = 0;
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::copyOurMergeToAllMerges()
+{
+    Common::addOneVectorToAnother<int>(mAllMerges.clusterSize, mMerge.clusterSize);
+    Common::addOneVectorToAnother<int>(mAllMerges.p, mMerge.p);
+    Common::addOneVectorToAnother<int>(mAllMerges.pClusterSize, mMerge.pClusterSize);
+    Common::addOneVectorToAnother<int>(mAllMerges.q, mMerge.q);
+    Common::addOneVectorToAnother<int>(mAllMerges.qClusterSize, mMerge.qClusterSize);
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::sendOurMergeToAllProcs(int numOfMerges, int root)
+{
+    MPI_Bcast(&mMerge.clusterSize, numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
+    MPI_Bcast(&mMerge.p, numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
+    MPI_Bcast(&mMerge.pClusterSize, numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
+    MPI_Bcast(&mMerge.q, numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
+    MPI_Bcast(&mMerge.qClusterSize, numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::receiveMergeFromRoot(int numOfMerges, int root)
+{
+    std::vector<int> buffer(numOfMerges); // Allocate a buffer where we put the received data.
+
+    // Get the data. Note: the order of MPI calls must be the same as in sendOurMergeToAllProcs().
+    MPI_Bcast(&buffer, numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
+    Common::addOneVectorToAnother<int>(mAllMerges.clusterSize, buffer);
+
+    MPI_Bcast(&buffer, numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
+    Common::addOneVectorToAnother<int>(mAllMerges.p, buffer);
+    
+    MPI_Bcast(&buffer, numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
+    Common::addOneVectorToAnother<int>(mAllMerges.pClusterSize, buffer);
+    
+    MPI_Bcast(&buffer, numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
+    Common::addOneVectorToAnother<int>(mAllMerges.q, buffer);
+    
+    MPI_Bcast(&buffer, numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
+    Common::addOneVectorToAnother<int>(mAllMerges.qClusterSize, buffer);
 }
 
 //---------------------------------------------------------------------------
@@ -528,10 +613,10 @@ void ParallelUnionFind2DStripes::printGlobalUfRootsAfterFirstMerge() const
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::printMerges() const
 {
-    const std::size_t numOfMerges = mMerge.size();
+    const std::size_t numOfMerges = mMerge.p.size();
 
     for (std::size_t i = 0u; i < numOfMerges; ++i)
     {
-        std::cout << "merge " << i << " p " << mMerge[i].p << " q " << mMerge[i].q << std::endl;
+        std::cout << "merge " << i << " p " << mMerge.p[i] << " q " << mMerge.q[i] << std::endl;
     }
 }

@@ -50,11 +50,11 @@ int SendColumnStrategy::getLeftNeighborProcessor() const
         }
         else
         {
-            return INVALID_VALUE; // TODO: get rid of magic numbers, use enum hack instead.
+            return INVALID_VALUE;
         }
     }
 
-    return INVALID_VALUE; // TODO: get rid of magic numbers, use enum hack instead.
+    return INVALID_VALUE;
 }
 
 //---------------------------------------------------------------------------
@@ -72,11 +72,11 @@ int SendColumnStrategy::getRightNeighborProcessor() const
         }
         else
         {
-            return INVALID_VALUE; // TODO: get rid of magic numbers, use enum hack instead.
+            return INVALID_VALUE;
         }
     }
 
-    return INVALID_VALUE; // TODO: get rid of magic numbers, use enum hack instead.
+    return INVALID_VALUE;
 }
 
 //---------------------------------------------------------------------------

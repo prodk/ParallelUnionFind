@@ -21,7 +21,7 @@ public:
     void printClusterStatistics(const std::string& fileName) const;
     void printClusterSizeHistogram(const int bins, const std::string& fileName) const;
 
-    // Overriden helper interface functions. Virual functions CANNOT be inlined!
+    // Overriden helper interface functions. Virtual functions CANNOT be inlined!
     void setPixelValue(const int value);
 
 private:
@@ -49,12 +49,8 @@ private:
     void initializeGloblaPixels(void);
     void copyLeftColumnAndSendToLeftNeighbor(void);
     void copyRightColumnAndSendToRightNeighbor(void);
-
-    // TODO: rename this function to differentiate it from runUfOnGlobalPixelsAndRecordGlobalMerges()
-    void runUfOnGlobalLabelsAndRecordMerges();
+    void runUfOnGlobalLabels();
     void runLocalUfOnGlobalLabelsToSetInitialRoots();
-
-    //TODO: rename this function!
     void runUfOnGlobalPixelsAndRecordGlobalMerges();
 
     void mergeClusterIds(int idq, int idp, std::tr1::shared_ptr<WeightedUnionFind> wuf) const;
@@ -62,11 +58,14 @@ private:
                                     const int pixelValue);
     void recordMerge(const int idp, const int idq);
 
-    void fillInTheMerge(Merge & merge, const std::vector<Pixel> & pixels, const int idp, const int idq) const;
-
     bool isNeighborPixelValid(const int pixel) const;
+    bool isClusterIdValid(const int pixel) const;
 
     // Stage 4 helpers.
+    void getMergesFromAllProcs();
+    void copyOurMergeToAllMerges();
+    void sendOurMergeToAllProcs(int numOfMerges, int root);
+    void receiveMergeFromRoot(int numOfMerges, int root);
 
     // Implementation helpers.
     void printLocalExtendedPicture(const DecompositionInfo& info) const;
@@ -85,9 +84,10 @@ private:
     std::vector<int> mLocalPixels;                     // Local mesh points.
     std::map<int, int> mGlobalLabels;                  // Non-consecutive local root is a key, a consecutive global root is a value.
     std::vector<Pixel> mGlobalPixels;                  // Extended pixels.
-    std::vector<Merge> mMerge;                         // A merge of 2 clusters residing on different processors but belonging to one cluster.
+    Merge mMerge;                                      // A merge of 2 clusters residing on different processors but belonging to one cluster.
+    Merge mAllMerges;                                  // All merges (including the one from the current proc).
 
-    enum {INVALID_VALUE = -1, BOSS};
+    enum {INVALID_VALUE = -1, BOSS, MSG_1};            // BOSS is 0 by default.
 };
 
 //---------------------------------------------------------------------------
@@ -120,7 +120,7 @@ inline int ParallelUnionFind2DStripes::getNeighborPeriodicBC(const int index, co
 inline int ParallelUnionFind2DStripes::getNeighborNonPeriodicBC(const int index, const int size) const
 {
     return (index >= size - 1) 
-           ? -1 
+           ? INVALID_VALUE
            : index + 1;
 }
 

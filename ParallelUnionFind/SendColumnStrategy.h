@@ -56,7 +56,6 @@ protected:
     const std::vector<Pixel> & mGlobalPixels;
     const std::tr1::shared_ptr<WeightedUnionFind> & mLocalWuf;
 
-    // TODO: think about const reference.
     std::map<int, int> & mGlobalLabels;        // This reference is not modified, so should have been const.
                                                // But if it is const we cannot use [] operator. So I left it non-const.
 

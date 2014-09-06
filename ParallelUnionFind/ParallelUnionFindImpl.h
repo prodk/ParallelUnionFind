@@ -9,6 +9,7 @@
 
 //---------------------------------------------------------------------------
 #include <string>
+#include <vector>
 
 //---------------------------------------------------------------------------
 class WeightedUnionFind;
@@ -33,11 +34,14 @@ struct DecompositionInfo
 // Records a single merge.
 struct Merge
 {
-    int p;                   // Root id of the 1st cluster.
-    int q;                   // Root id of the 2nd cluster.
-    int pClusterSize;        // Size of the cluster of the p root.
-    int qClusterSize;        // Size of the cluster of the q root.
-    int clusterSize;         // Size of the merged cluster.
+    // We put the arrays into the structure to simplify using Merge structure in MPI
+    // We do not want to bother with creating new MPI data type,
+    // as it seems easier to just send arrays of MPI_INTs.
+    std::vector<int> p;                   // Root id of the 1st cluster.
+    std::vector<int> q;                   // Root id of the 2nd cluster.
+    std::vector<int> pClusterSize;        // Size of the cluster of the p root.
+    std::vector<int> qClusterSize;        // Size of the cluster of the q root.
+    std::vector<int> clusterSize;         // Size of the merged cluster.
 };
 
 //---------------------------------------------------------------------------
