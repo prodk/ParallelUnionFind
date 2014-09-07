@@ -10,7 +10,7 @@ Data-Parallel Mesh Connected Components Labeling and Analysis,
 Eurographics Symposium on Parallel Graphics and Visualisation, 2011, (eds. T.Kuhlen, R.Pajarola, K.Zhou).
 
 _________________________________________________________
-(c) Mykola Prodanov, spring-summer 2014, Odessa, Ukraine.
+(c) Mykola Prodanov, spring-autumn 2014, Odessa, Ukraine.
 
 _________________________________________________________
 How to use:

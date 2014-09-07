@@ -63,9 +63,8 @@ private:
 
     // Stage 4 helpers.
     void getMergesFromAllProcs();
-    void copyOurMergeToAllMerges();
-    void sendOurMergeToAllProcs(int numOfMerges, int root);
-    void receiveMergeFromRoot(int numOfMerges, int root);
+
+    void broadcastMergeAndAddToAllMerges(const std::vector<int> & arrayToSend, std::vector<int> & arrayToReceive,int numOfMerges, int root);
 
     // Implementation helpers.
     void printLocalExtendedPicture(const DecompositionInfo& info) const;

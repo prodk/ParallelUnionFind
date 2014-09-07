@@ -415,16 +415,12 @@ void ParallelUnionFind2DStripes::performFinalLabelingOfClusters(void)
 
 void ParallelUnionFind2DStripes::getMergesFromAllProcs()
 {
-    // Take into account the merges that reside on the current processor.
-    copyOurMergeToAllMerges();
-
-    // Perform all-to-all communications to send our mMerge and to get merges from all other processors.
     for (int root = 0; root < mDecompositionInfo.numOfProc; ++root)
     {
         int numOfMerges = 0;
         if (mDecompositionInfo.myRank == root)
         {
-            numOfMerges = static_cast<int>(mMerge.p.size()); // Number of merges to send for the appropriate processor.
+            numOfMerges = static_cast<int>(mMerge.p.size()); // Number of merges to send for the current root.
         }
 
         // Send/receive the number of merges.
@@ -434,58 +430,36 @@ void ParallelUnionFind2DStripes::getMergesFromAllProcs()
         std::cout << "proc " << root << " numOfMerges " << numOfMerges << std::endl;
 #endif
 
-        // Having send/received the number of merges, we can send/receive the actual info about them
-        if (mDecompositionInfo.myRank == root)
-        {
-            sendOurMergeToAllProcs(numOfMerges, root);
-        }
-        else
-        {
-            receiveMergeFromRoot(numOfMerges, root);
-        }
+        // Having sent/received the number of merges, we can send/receive the actual info about them
+        broadcastMergeAndAddToAllMerges(mMerge.clusterSize, mAllMerges.clusterSize, numOfMerges, root);
+        broadcastMergeAndAddToAllMerges(mMerge.p, mAllMerges.p, numOfMerges, root);
+        broadcastMergeAndAddToAllMerges(mMerge.pClusterSize, mAllMerges.pClusterSize, numOfMerges, root);
+        broadcastMergeAndAddToAllMerges(mMerge.q, mAllMerges.q, numOfMerges, root);
+        broadcastMergeAndAddToAllMerges(mMerge.qClusterSize, mAllMerges.qClusterSize, numOfMerges, root);
+
+
     } // end for (root = 0;
 }
 
 //---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::copyOurMergeToAllMerges()
-{
-    Common::addOneVectorToAnother<int>(mAllMerges.clusterSize, mMerge.clusterSize);
-    Common::addOneVectorToAnother<int>(mAllMerges.p, mMerge.p);
-    Common::addOneVectorToAnother<int>(mAllMerges.pClusterSize, mMerge.pClusterSize);
-    Common::addOneVectorToAnother<int>(mAllMerges.q, mMerge.q);
-    Common::addOneVectorToAnother<int>(mAllMerges.qClusterSize, mMerge.qClusterSize);
-}
-
-//---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::sendOurMergeToAllProcs(int numOfMerges, int root)
-{
-    MPI_Bcast(&mMerge.clusterSize, numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
-    MPI_Bcast(&mMerge.p, numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
-    MPI_Bcast(&mMerge.pClusterSize, numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
-    MPI_Bcast(&mMerge.q, numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
-    MPI_Bcast(&mMerge.qClusterSize, numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
-}
-
-//---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::receiveMergeFromRoot(int numOfMerges, int root)
+void ParallelUnionFind2DStripes::broadcastMergeAndAddToAllMerges(const std::vector<int> & arrayToSend,
+                                                                 std::vector<int> & arrayToReceive,
+                                                                 int numOfMerges, int root)
 {
     std::vector<int> buffer(numOfMerges); // Allocate a buffer where we put the received data.
 
-    // Get the data. Note: the order of MPI calls must be the same as in sendOurMergeToAllProcs().
-    MPI_Bcast(&buffer, numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
-    Common::addOneVectorToAnother<int>(mAllMerges.clusterSize, buffer);
+    // Pack the data if we are sending it, otherwise set the buffer to 0s.
+    if (mDecompositionInfo.myRank == root)
+    {
+        buffer = arrayToSend;
+    }
+    else
+    {
+        std::fill(buffer.begin(), buffer.end(), 0);
+    }
 
-    MPI_Bcast(&buffer, numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
-    Common::addOneVectorToAnother<int>(mAllMerges.p, buffer);
-    
-    MPI_Bcast(&buffer, numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
-    Common::addOneVectorToAnother<int>(mAllMerges.pClusterSize, buffer);
-    
-    MPI_Bcast(&buffer, numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
-    Common::addOneVectorToAnother<int>(mAllMerges.q, buffer);
-    
-    MPI_Bcast(&buffer, numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
-    Common::addOneVectorToAnother<int>(mAllMerges.qClusterSize, buffer);
+    MPI_Bcast(&buffer[0], numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
+    Common::addOneVectorToAnother<int>(arrayToReceive, buffer);
 }
 
 //---------------------------------------------------------------------------
