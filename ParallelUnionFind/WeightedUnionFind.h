@@ -38,6 +38,7 @@ public:
     bool connected(int p, int q);        // True if both vertices are in the same cluster.
     void makeUnion(int p, int q);        // Put the vertices to the same cluster.
     void setInitialRoot(int id);         // Set the initial root of the vertex.
+    void setInitialRoot(int id, int clusterSize); // Overloaded version.
     void reset(int N);                   // Set the union find to a state as if it had been newly created.
 
     // Change local labeling of the clusters such that it is consecutive.

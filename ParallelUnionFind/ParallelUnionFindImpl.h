@@ -41,6 +41,8 @@ struct Merge
     std::vector<int> q;                   // Root id of the 2nd cluster.
     std::vector<int> pClusterSize;        // Size of the cluster of the p root.
     std::vector<int> qClusterSize;        // Size of the cluster of the q root.
+
+    // TODO: remove this field, it seems redundant.
     std::vector<int> clusterSize;         // Size of the merged cluster.
 };
 

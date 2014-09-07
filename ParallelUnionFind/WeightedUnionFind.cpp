@@ -80,6 +80,16 @@ void WeightedUnionFind::setInitialRoot(int idp)
 }
 
 //---------------------------------------------------------------------------
+void WeightedUnionFind::setInitialRoot(int idp, int clusterSize)
+{
+    if (mSize[idp] <= 0)
+    {
+        mSize[idp] = clusterSize; // Specify the size and the first root.
+        mRoots.insert(idp);       // Put the root into the set.
+    }
+}
+
+//---------------------------------------------------------------------------
 void WeightedUnionFind::reset(int N)
 {
     mId.resize(N);

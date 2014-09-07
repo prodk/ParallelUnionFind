@@ -217,11 +217,6 @@ void ParallelUnionFind2DStripes::initializeGloblaPixels(void)
                     mGlobalPixels[pixelGlobalId].globalClusterId = mGlobalLabels[pixelRoot];
                     mGlobalPixels[pixelGlobalId].sizeOfCluster = mLocalWuf->getClusterSize(pixelRoot);
                 }
-                else // TODO: perhaps remove this initialization if it is redundant.
-                {
-                    mGlobalPixels[pixelGlobalId].globalClusterId = INVALID_VALUE;
-                    mGlobalPixels[pixelGlobalId].sizeOfCluster = INVALID_VALUE;
-                }
             }
         }
     }
@@ -245,7 +240,7 @@ void ParallelUnionFind2DStripes::copyRightColumnAndSendToRightNeighbor(void)
 void ParallelUnionFind2DStripes::runUfOnGlobalLabels()
 {
     // We use the same extended width even when there are no periodic BCs.
-    // In the latter case the pixels of the boundary stripes contain -1 and are don't contribute to clusters.
+    // In the latter case the pixels of the boundary stripes contain -1 and don't contribute to clusters.
     const int numOfExtendedPixels = mDecompositionInfo.domainHeight * (mDecompositionInfo.domainWidth + 2);
 
     mGlobalWuf = static_cast<std::tr1::shared_ptr<WeightedUnionFind> >(new WeightedUnionFind(numOfExtendedPixels));
@@ -401,10 +396,10 @@ void ParallelUnionFind2DStripes::performFinalLabelingOfClusters(void)
     // Broadcast each processor's merges that we've just recorded.
     getMergesFromAllProcs();
 
-    // Replay all the unions from the global union list
+    // Replay all the unions from the global union list.
     getUniqueLabelForEachComponent();
 
-    // Transform the local labels of islands to the global ones using the global UF
+    // Transform the local labels of islands to the global ones using the final UF.
 
     // Transform the final labeling so that the labels range from 0 to Nc-1
     // where Nc - the total number of connected components
@@ -477,7 +472,34 @@ int ParallelUnionFind2DStripes::calculateNumberOfGlobalLabels() const
 void ParallelUnionFind2DStripes::getUniqueLabelForEachComponent()
 {
     // Get the number of unmerged clusters (some of them will be merged further).
-    const int numberOfGlobalLabels = calculateNumberOfGlobalLabels();
+    const int numOfGlobalLabels = calculateNumberOfGlobalLabels();
+
+    // Create a UF with the 'numberOfGlobalLabels' entries.
+    std::tr1::shared_ptr<WeightedUnionFind> finalUF(new WeightedUnionFind(numOfGlobalLabels));
+
+    // Replay all the unions that happened accross the processors' boundaries.
+    const std::size_t numOfAllMerges = mAllMerges.p.size();
+    for (std::size_t index = 0u; index < numOfAllMerges; ++index)
+    {
+        // Set initial roots/cluster sizes for the entries that are to be merged.
+        const int idp = mAllMerges.p[index];
+        const int idpClusterSize = mAllMerges.pClusterSize[index];
+        finalUF->setInitialRoot(idp, idpClusterSize);
+
+        const int idq = mAllMerges.q[index];
+        const int idqClusterSize = mAllMerges.qClusterSize[index];
+        finalUF->setInitialRoot(idq, idqClusterSize);
+
+        // Connect the globla labels.
+        if (!finalUF->connected(idp, idq))  // Merge vertices only if they're not yet merged.
+        {
+            finalUF->makeUnion(idp, idq);
+        }
+    }
+
+    // DEBUG
+    const std::map<int, int>& consecutiveLocalIds = finalUF->getConsecutiveRootIds();
+    const int finalNumOfClusters = consecutiveLocalIds.size();
 }
 
 //---------------------------------------------------------------------------
