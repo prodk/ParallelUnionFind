@@ -63,8 +63,9 @@ private:
 
     // Stage 4 helpers.
     void getMergesFromAllProcs();
-
     void broadcastMergeAndAddToAllMerges(const std::vector<int> & arrayToSend, std::vector<int> & arrayToReceive,int numOfMerges, int root);
+    int calculateNumberOfGlobalLabels() const;
+    void getUniqueLabelForEachComponent();
 
     // Implementation helpers.
     void printLocalExtendedPicture(const DecompositionInfo& info) const;

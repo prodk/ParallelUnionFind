@@ -401,10 +401,8 @@ void ParallelUnionFind2DStripes::performFinalLabelingOfClusters(void)
     // Broadcast each processor's merges that we've just recorded.
     getMergesFromAllProcs();
 
-    // N - the total number of labels over all processors
-    // Create a global UF with N entries with a default label
-
     // Replay all the unions from the global union list
+    getUniqueLabelForEachComponent();
 
     // Transform the local labels of islands to the global ones using the global UF
 
@@ -436,8 +434,6 @@ void ParallelUnionFind2DStripes::getMergesFromAllProcs()
         broadcastMergeAndAddToAllMerges(mMerge.pClusterSize, mAllMerges.pClusterSize, numOfMerges, root);
         broadcastMergeAndAddToAllMerges(mMerge.q, mAllMerges.q, numOfMerges, root);
         broadcastMergeAndAddToAllMerges(mMerge.qClusterSize, mAllMerges.qClusterSize, numOfMerges, root);
-
-
     } // end for (root = 0;
 }
 
@@ -460,6 +456,28 @@ void ParallelUnionFind2DStripes::broadcastMergeAndAddToAllMerges(const std::vect
 
     MPI_Bcast(&buffer[0], numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
     Common::addOneVectorToAnother<int>(arrayToReceive, buffer);
+}
+
+//---------------------------------------------------------------------------
+int ParallelUnionFind2DStripes::calculateNumberOfGlobalLabels() const
+{
+    int numberOfGlobalLabels = 0;
+
+    int myNumberOfLables = mGlobalLabels.size();
+
+    MPI_Reduce(&myNumberOfLables, &numberOfGlobalLabels, 1, MPI_INT, MPI_SUM, BOSS, MPI_COMM_WORLD);
+
+    // Give the just calculated value to all the processors.
+    MPI_Bcast(&numberOfGlobalLabels, 1, MPI_INT, BOSS, MPI_COMM_WORLD);
+
+    return numberOfGlobalLabels;
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::getUniqueLabelForEachComponent()
+{
+    // Get the number of unmerged clusters (some of them will be merged further).
+    const int numberOfGlobalLabels = calculateNumberOfGlobalLabels();
 }
 
 //---------------------------------------------------------------------------
