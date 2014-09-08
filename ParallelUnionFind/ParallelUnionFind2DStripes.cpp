@@ -16,6 +16,7 @@ ParallelUnionFind2DStripes::ParallelUnionFind2DStripes(const DecompositionInfo& 
     , mGlobalWuf()
     , mMerge()
     , mAllMerges()
+    , mFinalWuf()
 {
     if (mDecompositionInfo.numOfProc <= 0)
     {
@@ -243,7 +244,7 @@ void ParallelUnionFind2DStripes::runUfOnGlobalLabels()
     // In the latter case the pixels of the boundary stripes contain -1 and don't contribute to clusters.
     const int numOfExtendedPixels = mDecompositionInfo.domainHeight * (mDecompositionInfo.domainWidth + 2);
 
-    mGlobalWuf = static_cast<std::tr1::shared_ptr<WeightedUnionFind> >(new WeightedUnionFind(numOfExtendedPixels));
+    mGlobalWuf = std::tr1::shared_ptr<WeightedUnionFind>(new WeightedUnionFind(numOfExtendedPixels));
 
     // At first run the local UF, but merge the pixels based on their global cluster id, not the pixel value.
     runLocalUfOnGlobalLabelsToSetInitialRoots();
@@ -400,9 +401,25 @@ void ParallelUnionFind2DStripes::performFinalLabelingOfClusters(void)
     getUniqueLabelForEachComponent();
 
     // Transform the local labels of islands to the global ones using the final UF.
-
     // Transform the final labeling so that the labels range from 0 to Nc-1
     // where Nc - the total number of connected components
+
+    // Define total number of clusters.
+    // Map: first - nonconsecutive global label; second - consecutive global label.
+    const std::map<int, int>& consecutiveFinalIds = mFinalWuf->getConsecutiveRootIds();
+    const int finalNumOfClusters = consecutiveFinalIds.size();
+
+    std::cout << std::endl << "total number of contact clusters " << finalNumOfClusters << std::endl;
+
+    // TODO: print the final labels to a file for debug purposes.
+
+    // TODO: make an array of cluster sizes residing on the current processor.
+
+    // TODO: define min/max cluster sizes
+
+    // TODO: get the cluster size distribution
+
+    // TODO: if BOSS, output the cluster size info
 
 }
 
@@ -423,7 +440,7 @@ void ParallelUnionFind2DStripes::getMergesFromAllProcs()
         std::cout << "proc " << root << " numOfMerges " << numOfMerges << std::endl;
 #endif
 
-        // Having sent/received the number of merges, we can send/receive the actual info about them
+        // Having sent/received the number of merges, we can send/receive the actual info about them.
         broadcastMergeAndAddToAllMerges(mMerge.clusterSize, mAllMerges.clusterSize, numOfMerges, root);
         broadcastMergeAndAddToAllMerges(mMerge.p, mAllMerges.p, numOfMerges, root);
         broadcastMergeAndAddToAllMerges(mMerge.pClusterSize, mAllMerges.pClusterSize, numOfMerges, root);
@@ -475,7 +492,14 @@ void ParallelUnionFind2DStripes::getUniqueLabelForEachComponent()
     const int numOfGlobalLabels = calculateNumberOfGlobalLabels();
 
     // Create a UF with the 'numberOfGlobalLabels' entries.
-    std::tr1::shared_ptr<WeightedUnionFind> finalUF(new WeightedUnionFind(numOfGlobalLabels));
+    mFinalWuf = std::tr1::shared_ptr<WeightedUnionFind>(new WeightedUnionFind(numOfGlobalLabels));
+
+    // Set the default roots for all the entries (necessary to get the consecutive labeling in the end).
+    for (int index = 0; index < numOfGlobalLabels; ++index)
+    {
+        mFinalWuf->setInitialRoot(index, 0);
+    }
+
 
     // Replay all the unions that happened accross the processors' boundaries.
     const std::size_t numOfAllMerges = mAllMerges.p.size();
@@ -484,22 +508,18 @@ void ParallelUnionFind2DStripes::getUniqueLabelForEachComponent()
         // Set initial roots/cluster sizes for the entries that are to be merged.
         const int idp = mAllMerges.p[index];
         const int idpClusterSize = mAllMerges.pClusterSize[index];
-        finalUF->setInitialRoot(idp, idpClusterSize);
+        mFinalWuf->setInitialRoot(idp, idpClusterSize);
 
         const int idq = mAllMerges.q[index];
         const int idqClusterSize = mAllMerges.qClusterSize[index];
-        finalUF->setInitialRoot(idq, idqClusterSize);
+        mFinalWuf->setInitialRoot(idq, idqClusterSize);
 
         // Connect the globla labels.
-        if (!finalUF->connected(idp, idq))  // Merge vertices only if they're not yet merged.
+        if (!mFinalWuf->connected(idp, idq))  // Merge vertices only if they're not yet merged.
         {
-            finalUF->makeUnion(idp, idq);
+            mFinalWuf->makeUnion(idp, idq);
         }
     }
-
-    // DEBUG
-    const std::map<int, int>& consecutiveLocalIds = finalUF->getConsecutiveRootIds();
-    const int finalNumOfClusters = consecutiveLocalIds.size();
 }
 
 //---------------------------------------------------------------------------

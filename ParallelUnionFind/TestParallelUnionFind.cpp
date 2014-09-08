@@ -40,7 +40,6 @@ void TestParallelUnionFind::runTests()
 //---------------------------------------------------------------------------
 void TestParallelUnionFind::analyze(DecompositionInfo& info, const std::string& fileIn)
 {
-    //if (readPixels(mPixels, fileIn, info) >= 0)
     if (readPixelsInParallel(fileIn, info) >= 0)
     {
         // Specify pixels just read from the file.

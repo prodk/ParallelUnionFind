@@ -86,6 +86,7 @@ private:
     std::vector<Pixel> mGlobalPixels;                  // Extended pixels.
     Merge mMerge;                                      // A merge of 2 clusters residing on different processors but belonging to one cluster.
     Merge mAllMerges;                                  // All merges (including the one from the current proc).
+    std::tr1::shared_ptr<WeightedUnionFind> mFinalWuf; // UF with final labeling, includes merges that span several procs.
 
     enum {INVALID_VALUE = -1, BOSS, MSG_1};            // BOSS is 0 by default.
 };
