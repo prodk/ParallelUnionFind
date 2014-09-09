@@ -48,8 +48,14 @@ void TestParallelUnionFind::analyze(DecompositionInfo& info, const std::string& 
 
         // Analyze contact (pixel value 1 by default).
         puf.analyze();
+
+#ifdef _DEBUG
+        puf.printPerProcessorClusterStatistics("");
+        puf.printPerProcessorClusterSizes("");
+#endif
+
         puf.printClusterStatistics("");
-        puf.printClusterSizes("");
+
         //int bins = 1000;
         //puf.printClusterSizeHistogram(bins, "cont"+fileIn);
 
@@ -58,9 +64,9 @@ void TestParallelUnionFind::analyze(DecompositionInfo& info, const std::string& 
         const int pixelvalue = 0;
         puf.setPixelValue(pixelvalue);
         puf.analyze();
-        puf.printClusterStatistics("");
-        puf.printClusterSizes("");*/
-        //puf.printClusterSizeHistogram(bins, "ncont"+fileIn);
+        puf.printPerProcessorClusterStatistics("");
+        puf.printPerProcessorClusterSizes("");*/
+        //puf.printPerProcessorClusterSizeHistogram(bins, "ncont"+fileIn);
     }
 }
 
@@ -117,11 +123,6 @@ DecompositionInfo TestParallelUnionFind::defineDecomposition256()
 
     const int size = 256;
     fillInDecompositionInfo(info, size);
-    /*info.domainWidth = 256;
-    info.domainHeight = 256;
-    info.myRank = mMyRank;
-    info.numOfProc = mNumOfProc;
-    info.pixels = 0;*/
 
     return info;
 }
@@ -133,12 +134,6 @@ DecompositionInfo TestParallelUnionFind::defineDecomposition1k()
 
     const int size = 1024;
     fillInDecompositionInfo(info, size);
-    
-    /*info.domainWidth = 1024;
-    info.domainHeight = 1024;
-    info.myRank = mMyRank;
-    info.numOfProc = mNumOfProc;
-    info.pixels = 0;*/
 
     return info;
 }
@@ -151,12 +146,6 @@ DecompositionInfo TestParallelUnionFind::defineDecomposition4k()
     const int size = 4096;
     fillInDecompositionInfo(info, size);
 
-    /*info.domainWidth = 4096;
-    info.domainHeight = 4096;
-    info.myRank = mMyRank;
-    info.numOfProc = mNumOfProc;
-    info.pixels = 0;*/
-
     return info;
 }
 
@@ -167,12 +156,6 @@ DecompositionInfo TestParallelUnionFind::defineDecomposition8k()
 
     const int size = 8192;
     fillInDecompositionInfo(info, size);
-
-    /*info.domainWidth = 8192;
-    info.domainHeight = 8192;
-    info.myRank = mMyRank;
-    info.numOfProc = mNumOfProc;
-    info.pixels = 0;*/
 
     return info;
 }

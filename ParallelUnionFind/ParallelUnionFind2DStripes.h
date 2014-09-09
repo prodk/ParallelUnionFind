@@ -16,10 +16,14 @@ public:
     ~ParallelUnionFind2DStripes(void);
 
     // Overriden output.
-    // TODO: rename/add functions that specify whether local or global quantities are printed.
     void printClusterSizes(const std::string& fileName) const;
     void printClusterStatistics(const std::string& fileName) const;
     void printClusterSizeHistogram(const int bins, const std::string& fileName) const;
+
+    // Overriden output of local data.
+    void printPerProcessorClusterSizes(const std::string& fileName) const;
+    void printPerProcessorClusterStatistics(const std::string& fileName) const;
+    void printPerProcessorClusterSizeHistogram(const int bins, const std::string& fileName) const;
 
     // Overriden helper interface functions. Virtual functions CANNOT be inlined!
     void setPixelValue(const int value);
@@ -67,6 +71,8 @@ private:
     int calculateNumberOfGlobalLabels() const;
     void getUniqueLabelForEachComponent();
 
+    void defineMinMaxClusterSizes();
+
     // Implementation helpers.
     void printLocalExtendedPicture(const DecompositionInfo& info) const;
     void printReceivedGlobalLabels() const;
@@ -87,6 +93,9 @@ private:
     Merge mMerge;                                      // A merge of 2 clusters residing on different processors but belonging to one cluster.
     Merge mAllMerges;                                  // All merges (including the one from the current proc).
     std::tr1::shared_ptr<WeightedUnionFind> mFinalWuf; // UF with final labeling, includes merges that span several procs.
+    int mTotalNumOfClusters;                           // Number of connected components on all the processors.
+    int mMinClusterSize;                               // Global value of the smallest cluster size.
+    int mMaxClusterSize;                               // Global value of the largest cluster size.
 
     enum {INVALID_VALUE = -1, BOSS, MSG_1};            // BOSS is 0 by default.
 };

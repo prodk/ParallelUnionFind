@@ -30,7 +30,7 @@ void ParallelUnionFind::analyze(void)
 void ParallelUnionFind::printClusterStatistics(const std::string& fileName) const
 {
 #ifdef _DEBUG
-    logMsg(std::cout, "PUF::printClusterStatistics()");
+    logMsg(std::cout, "\nPUF::printClusterStatistics()");
 #endif
 
     mParallelUf->printClusterStatistics(fileName);
@@ -56,6 +56,7 @@ void ParallelUnionFind::printClusterSizeHistogram(const int bins, const std::str
     mParallelUf->printClusterSizeHistogram(bins, fileName);
 }
 
+//---------------------------------------------------------------------------
 void ParallelUnionFind::setPixelValue(const int value)
 {
 #ifdef _DEBUG
@@ -63,6 +64,36 @@ void ParallelUnionFind::setPixelValue(const int value)
 #endif
 
     mParallelUf->setPixelValue(value);
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind::printPerProcessorClusterStatistics(const std::string& fileName) const
+{
+#ifdef _DEBUG
+    logMsg(std::cout, "\nPUF::printPerProcessorClusterStatistics()");
+#endif
+
+    mParallelUf->printPerProcessorClusterStatistics(fileName);
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind::printPerProcessorClusterSizes(const std::string& fileName) const
+{
+#ifdef _DEBUG
+    logMsg(std::cout, "\nPUF::printPerProcessorClusterSizes()");
+#endif
+
+    mParallelUf->printPerProcessorClusterSizes(fileName);
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind::printPerProcessorClusterSizeHistogram(const int bins, const std::string& fileName) const
+{
+#ifdef _DEBUG
+    logMsg(std::cout, "\nPUF::printPerProcessorClusterSizeHistogram()");
+#endif
+
+    mParallelUf->printPerProcessorClusterSizeHistogram(bins, fileName);
 }
 
 //---------------------------------------------------------------------------

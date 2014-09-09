@@ -22,6 +22,11 @@ public:
     void printClusterSizeHistogram(const int bins, const std::string& fileName) const;
     void setPixelValue(const int value);
 
+    // Functions with mainly debugging purpose.
+    void printPerProcessorClusterStatistics(const std::string& fileName) const;
+    void printPerProcessorClusterSizes(const std::string& fileName) const;
+    void printPerProcessorClusterSizeHistogram(const int bins, const std::string& fileName) const;
+
     // Log messages in the debug mode.
 #ifdef _DEBUG
 private:

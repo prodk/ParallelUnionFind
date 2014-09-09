@@ -17,6 +17,9 @@ ParallelUnionFind2DStripes::ParallelUnionFind2DStripes(const DecompositionInfo& 
     , mMerge()
     , mAllMerges()
     , mFinalWuf()
+    , mTotalNumOfClusters(0)
+    , mMinClusterSize(1)
+    , mMaxClusterSize(1)
 {
     if (mDecompositionInfo.numOfProc <= 0)
     {
@@ -255,7 +258,9 @@ void ParallelUnionFind2DStripes::runUfOnGlobalLabels()
 
     runUfOnGlobalPixelsAndRecordGlobalMerges();
 
+#ifdef _DEBUG
     printMerges();
+#endif
 }
 
 //---------------------------------------------------------------------------
@@ -332,7 +337,6 @@ void ParallelUnionFind2DStripes::runUfOnGlobalPixelsAndRecordGlobalMerges()
             int idp = indexTo1D(ix, iy);      // Convert 2D pixel coordinates into 1D index.
             if (mDecompositionInfo.pixelValue == mGlobalPixels[idp].pixelValue)
             {
-                // TODO: perhaps delete this line, we assume that mGlobalWuf has alredy been run at least once.
                 mGlobalWuf->setInitialRoot(idp);   // Set the root and the tree size (if it was 0).
 
                 // See whether neighboring (in both directions) pixels should be merged.
@@ -375,7 +379,6 @@ void ParallelUnionFind2DStripes::recordMerge(const int idp, const int idq)
     mMerge.q.push_back(mGlobalPixels[idq].globalClusterId);
     mMerge.pClusterSize.push_back(mGlobalPixels[idp].sizeOfCluster);
     mMerge.qClusterSize.push_back(mGlobalPixels[idq].sizeOfCluster);
-    mMerge.clusterSize.push_back(mGlobalPixels[idp].sizeOfCluster + mGlobalPixels[idq].sizeOfCluster);
 }
 
 //---------------------------------------------------------------------------
@@ -400,27 +403,20 @@ void ParallelUnionFind2DStripes::performFinalLabelingOfClusters(void)
     // Replay all the unions from the global union list.
     getUniqueLabelForEachComponent();
 
-    // Transform the local labels of islands to the global ones using the final UF.
-    // Transform the final labeling so that the labels range from 0 to Nc-1
-    // where Nc - the total number of connected components
+    // I skip the two 2 final steps of the algorithm:
+    // i) Transform the local labels of islands to the global ones using the final UF.
+    // ii) Transform the final labeling so that the labels range from 0 to Nc-1, Nc - the total number of connected components.    
+    // Reasons for skipping:
+    // 1) we can perform the transformation i) on the fly using mFinalWuf.
+    // 2) transform ii) is not required for our goals.
 
-    // Define total number of clusters.
-    // Map: first - nonconsecutive global label; second - consecutive global label.
-    const std::map<int, int>& consecutiveFinalIds = mFinalWuf->getConsecutiveRootIds();
-    const int finalNumOfClusters = consecutiveFinalIds.size();
 
-    std::cout << std::endl << "total number of contact clusters " << finalNumOfClusters << std::endl;
+    // Get the desired statistics.
 
-    // TODO: print the final labels to a file for debug purposes.
+    // Define min/max cluster sizes.
+    defineMinMaxClusterSizes();
 
-    // TODO: make an array of cluster sizes residing on the current processor.
-
-    // TODO: define min/max cluster sizes
-
-    // TODO: get the cluster size distribution
-
-    // TODO: if BOSS, output the cluster size info
-
+    // Size histogram is computed in the corresponding 'print' method.
 }
 
 void ParallelUnionFind2DStripes::getMergesFromAllProcs()
@@ -441,11 +437,13 @@ void ParallelUnionFind2DStripes::getMergesFromAllProcs()
 #endif
 
         // Having sent/received the number of merges, we can send/receive the actual info about them.
-        broadcastMergeAndAddToAllMerges(mMerge.clusterSize, mAllMerges.clusterSize, numOfMerges, root);
-        broadcastMergeAndAddToAllMerges(mMerge.p, mAllMerges.p, numOfMerges, root);
-        broadcastMergeAndAddToAllMerges(mMerge.pClusterSize, mAllMerges.pClusterSize, numOfMerges, root);
-        broadcastMergeAndAddToAllMerges(mMerge.q, mAllMerges.q, numOfMerges, root);
-        broadcastMergeAndAddToAllMerges(mMerge.qClusterSize, mAllMerges.qClusterSize, numOfMerges, root);
+        if (numOfMerges > 0)
+        {
+            broadcastMergeAndAddToAllMerges(mMerge.p, mAllMerges.p, numOfMerges, root);
+            broadcastMergeAndAddToAllMerges(mMerge.pClusterSize, mAllMerges.pClusterSize, numOfMerges, root);
+            broadcastMergeAndAddToAllMerges(mMerge.q, mAllMerges.q, numOfMerges, root);
+            broadcastMergeAndAddToAllMerges(mMerge.qClusterSize, mAllMerges.qClusterSize, numOfMerges, root);
+        }
     } // end for (root = 0;
 }
 
@@ -500,7 +498,6 @@ void ParallelUnionFind2DStripes::getUniqueLabelForEachComponent()
         mFinalWuf->setInitialRoot(index, 0);
     }
 
-
     // Replay all the unions that happened accross the processors' boundaries.
     const std::size_t numOfAllMerges = mAllMerges.p.size();
     for (std::size_t index = 0u; index < numOfAllMerges; ++index)
@@ -523,7 +520,20 @@ void ParallelUnionFind2DStripes::getUniqueLabelForEachComponent()
 }
 
 //---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::printClusterSizes(const std::string& fileName) const
+void ParallelUnionFind2DStripes::defineMinMaxClusterSizes()
+{
+    // TODO: make an array of cluster sizes residing on the current processor.
+
+    // Define total number of clusters.
+    // Map: first - nonconsecutive global label; second - consecutive global label.
+    const std::map<int, int>& consecutiveFinalIds = mFinalWuf->getConsecutiveRootIds();
+    mTotalNumOfClusters = consecutiveFinalIds.size();
+
+
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::printPerProcessorClusterSizes(const std::string& fileName) const
 {
     if ((fileName.length() > 0) && ("" != fileName))
     {
@@ -541,7 +551,7 @@ void ParallelUnionFind2DStripes::printClusterSizes(const std::string& fileName) 
 }
 
 //---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::printClusterStatistics(const std::string& fileName) const
+void ParallelUnionFind2DStripes::printPerProcessorClusterStatistics(const std::string& fileName) const
 {
     if ((fileName.length() > 0) && ("" != fileName))
     {
@@ -561,7 +571,7 @@ void ParallelUnionFind2DStripes::printClusterStatistics(const std::string& fileN
 }
 
 //---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::printClusterSizeHistogram(const int bins, const std::string& fileName) const
+void ParallelUnionFind2DStripes::printPerProcessorClusterSizeHistogram(const int bins, const std::string& fileName) const
 {
     mLocalWuf->printClusterSizeHistogram(bins, fileName);
 }
@@ -653,4 +663,22 @@ void ParallelUnionFind2DStripes::printMerges() const
     {
         std::cout << "merge " << i << " p " << mMerge.p[i] << " q " << mMerge.q[i] << std::endl;
     }
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::printClusterSizes(const std::string& fileName) const
+{
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::printClusterStatistics(const std::string& fileName) const
+{
+    std::cout << "Found clusters: " << mTotalNumOfClusters << std::endl;
+    std::cout << "Min cluster: " << mMinClusterSize << std::endl;
+    std::cout << "Max cluster: " << mMaxClusterSize << std::endl;
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::printClusterSizeHistogram(const int bins, const std::string& fileName) const
+{
 }

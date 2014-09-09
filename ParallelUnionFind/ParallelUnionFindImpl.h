@@ -41,9 +41,6 @@ struct Merge
     std::vector<int> q;                   // Root id of the 2nd cluster.
     std::vector<int> pClusterSize;        // Size of the cluster of the p root.
     std::vector<int> qClusterSize;        // Size of the cluster of the q root.
-
-    // TODO: remove this field, it seems redundant.
-    std::vector<int> clusterSize;         // Size of the merged cluster.
 };
 
 //---------------------------------------------------------------------------
@@ -59,6 +56,11 @@ public:
     virtual void printClusterSizes(const std::string& fileName) const = 0;
     virtual void printClusterStatistics(const std::string& fileName) const = 0;
     virtual void printClusterSizeHistogram(const int bins, const std::string& fileName) const = 0;
+
+    // Output local (i.e. related to the current processors) quantities (usually for debugging purposes).
+    virtual void printPerProcessorClusterSizes(const std::string& fileName) const = 0;
+    virtual void printPerProcessorClusterStatistics(const std::string& fileName) const = 0;
+    virtual void printPerProcessorClusterSizeHistogram(const int bins, const std::string& fileName) const = 0;
 
     // Helper interface functions.
     virtual void setPixelValue(const int value) = 0;
