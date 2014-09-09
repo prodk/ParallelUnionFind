@@ -70,17 +70,13 @@ private:
     void broadcastMergeAndAddToAllMerges(const std::vector<int> & arrayToSend, std::vector<int> & arrayToReceive,int numOfMerges, int root);
     int calculateNumberOfGlobalLabels() const;
     void getUniqueLabelForEachComponent();
-
-    void defineMinMaxClusterSizes();
+    void getMinMaxClusterSizes();
 
     // Implementation helpers.
     void printLocalExtendedPicture(const DecompositionInfo& info) const;
     void printReceivedGlobalLabels() const;
-
     void printGlobalUfRootsAfterFirstMerge() const;
-
     void printMerges() const;
-
 
 private:
     std::size_t mNumOfPixels;

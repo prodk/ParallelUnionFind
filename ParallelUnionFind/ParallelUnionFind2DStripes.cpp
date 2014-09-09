@@ -410,11 +410,10 @@ void ParallelUnionFind2DStripes::performFinalLabelingOfClusters(void)
     // 1) we can perform the transformation i) on the fly using mFinalWuf.
     // 2) transform ii) is not required for our goals.
 
-
     // Get the desired statistics.
 
     // Define min/max cluster sizes.
-    defineMinMaxClusterSizes();
+    getMinMaxClusterSizes();
 
     // Size histogram is computed in the corresponding 'print' method.
 }
@@ -520,16 +519,47 @@ void ParallelUnionFind2DStripes::getUniqueLabelForEachComponent()
 }
 
 //---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::defineMinMaxClusterSizes()
+void ParallelUnionFind2DStripes::getMinMaxClusterSizes()
 {
-    // TODO: make an array of cluster sizes residing on the current processor.
-
     // Define total number of clusters.
     // Map: first - nonconsecutive global label; second - consecutive global label.
     const std::map<int, int>& consecutiveFinalIds = mFinalWuf->getConsecutiveRootIds();
     mTotalNumOfClusters = consecutiveFinalIds.size();
 
+    // Loop over all the roots residing on the current proc.
+    const std::map<int, int>& consecutiveLocalIds = mLocalWuf->getConsecutiveRootIds();
+    std::map<int, int>::const_iterator iter = consecutiveLocalIds.begin();
 
+    int minClusterSize = mLocalWuf->getClusterSize(iter->first);
+    int maxClusterSize = mLocalWuf->getClusterSize(iter->first);
+
+    for (; iter != consecutiveLocalIds.end(); ++iter)
+    {
+        const int localRoot = iter->first;
+        const int globalRoot = mGlobalLabels[iter->first];
+
+        // If the cluster spans several procs, use mFinalWuf and globalRoot.
+        int clusterSize = mFinalWuf->getClusterSize(globalRoot);
+
+        // If cluster size is 0, then it is a (global label of a) local cluster, hence use the local cluster size.
+        if (clusterSize <=0)
+        {
+            clusterSize = mLocalWuf->getClusterSize(localRoot);
+        }
+
+        minClusterSize = std::min(clusterSize, minClusterSize);
+        maxClusterSize = std::max(clusterSize, maxClusterSize);
+
+        // TODO: make an array of cluster sizes residing on the current processor.
+        // TODO: distinguish those clusters that span several procs (will be used for the size histogram).
+    } // end for root
+
+    // Get the final min/max values
+    MPI_Reduce(&minClusterSize, &mMinClusterSize, 1, MPI_INT, MPI_MIN, BOSS, MPI_COMM_WORLD);
+    MPI_Reduce(&maxClusterSize, &mMaxClusterSize, 1, MPI_INT, MPI_MAX, BOSS, MPI_COMM_WORLD);
+
+    //mMinClusterSize = minClusterSize;
+    //mMaxClusterSize = maxClusterSize;
 }
 
 //---------------------------------------------------------------------------
@@ -673,9 +703,13 @@ void ParallelUnionFind2DStripes::printClusterSizes(const std::string& fileName) 
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::printClusterStatistics(const std::string& fileName) const
 {
-    std::cout << "Found clusters: " << mTotalNumOfClusters << std::endl;
-    std::cout << "Min cluster: " << mMinClusterSize << std::endl;
-    std::cout << "Max cluster: " << mMaxClusterSize << std::endl;
+    if (BOSS == mDecompositionInfo.myRank)
+    {
+        std::cout << "Processor " << BOSS << " (BOSS) report:" << std::endl;
+        std::cout << "Found clusters: " << mTotalNumOfClusters << std::endl;
+        std::cout << "Min cluster: " << mMinClusterSize << std::endl;
+        std::cout << "Max cluster: " << mMaxClusterSize << std::endl;
+    }
 }
 
 //---------------------------------------------------------------------------
