@@ -144,7 +144,7 @@ int ParallelUnionFind2DStripes::receiveNumberOfClustersFromPreviousProcs() const
     MPI_Status mpiStatus;
 
     // Root doesn't receive anything, its offset is 0. The root initiates sending.
-    if (0 != mDecompositionInfo.myRank)
+    if (BOSS != mDecompositionInfo.myRank)
     {
         const int receiveFromProc = mDecompositionInfo.myRank - 1;
         MPI_Recv(&numOfClusters, 1, MPI_INT, receiveFromProc, msgId, MPI_COMM_WORLD, &mpiStatus);
@@ -271,9 +271,9 @@ void ParallelUnionFind2DStripes::runLocalUfOnGlobalLabelsToSetInitialRoots()
     // In this way we will prepare the UF tree of merged clusters.
 
     const int numOfExtendedPixels = mDecompositionInfo.domainHeight * (mDecompositionInfo.domainWidth + 2);
-    mGlobalWuf->reset(numOfExtendedPixels);                // Clear the UF. Necessary if we reuse the same UF.
+    mGlobalWuf->reset(numOfExtendedPixels);              // Clear the UF. Necessary if we reuse the same UF.
 
-    const int nx = mDecompositionInfo.domainWidth + 2;
+    const int nx = mDecompositionInfo.domainWidth + 2;   // Two additional columns.
     const int ny = mDecompositionInfo.domainHeight;
 
     for (int ix = 0; ix < nx; ++ix)                      // Loop through the pixels, columns fastest.
@@ -334,7 +334,7 @@ void ParallelUnionFind2DStripes::runUfOnGlobalPixelsAndRecordGlobalMerges()
         {
             // TODO: recheck this logic because still the same merges are recorded several times.
             // Act only if the cluster id is valid.
-            int idp = indexTo1D(ix, iy);      // Convert 2D pixel coordinates into 1D index.
+            int idp = indexTo1D(ix, iy);           // Convert 2D pixel coordinates into 1D index.
             if (mDecompositionInfo.pixelValue == mGlobalPixels[idp].pixelValue)
             {
                 mGlobalWuf->setInitialRoot(idp);   // Set the root and the tree size (if it was 0).
@@ -485,7 +485,7 @@ int ParallelUnionFind2DStripes::calculateNumberOfGlobalLabels() const
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::getUniqueLabelForEachComponent()
 {
-    // Get the number of unmerged clusters (some of them will be merged further).
+    // Get the number of unmerged (across processors) clusters (some of them will be merged further).
     const int numOfGlobalLabels = calculateNumberOfGlobalLabels();
 
     // Create a UF with the 'numberOfGlobalLabels' entries.
@@ -557,9 +557,6 @@ void ParallelUnionFind2DStripes::getMinMaxClusterSizes()
     // Get the final min/max values
     MPI_Reduce(&minClusterSize, &mMinClusterSize, 1, MPI_INT, MPI_MIN, BOSS, MPI_COMM_WORLD);
     MPI_Reduce(&maxClusterSize, &mMaxClusterSize, 1, MPI_INT, MPI_MAX, BOSS, MPI_COMM_WORLD);
-
-    //mMinClusterSize = minClusterSize;
-    //mMaxClusterSize = maxClusterSize;
 }
 
 //---------------------------------------------------------------------------

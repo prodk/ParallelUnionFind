@@ -27,10 +27,10 @@ TestParallelUnionFind::~TestParallelUnionFind(void)
 //---------------------------------------------------------------------------
 void TestParallelUnionFind::runTests()
 {
-    //test8();
+    test8();
     //test256();
     //test1k();
-    test4k();
+    //test4k();
     //test8k();
 #ifdef _DEBUG
     forceWindowToStay();
