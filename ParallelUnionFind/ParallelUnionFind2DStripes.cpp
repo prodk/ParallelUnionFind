@@ -20,6 +20,7 @@ ParallelUnionFind2DStripes::ParallelUnionFind2DStripes(const DecompositionInfo& 
     , mTotalNumOfClusters(0)
     , mMinClusterSize(1)
     , mMaxClusterSize(1)
+    , mClusterSizes()
 {
     if (mDecompositionInfo.numOfProc <= 0)
     {
@@ -526,6 +527,9 @@ void ParallelUnionFind2DStripes::getMinMaxClusterSizes()
     const std::map<int, int>& consecutiveFinalIds = mFinalWuf->getConsecutiveRootIds();
     mTotalNumOfClusters = consecutiveFinalIds.size();
 
+    // Set the number of cluster sizes we're going to get.
+    mClusterSizes.resize(mGlobalLabels.size());
+
     // Loop over all the roots residing on the current proc.
     const std::map<int, int>& consecutiveLocalIds = mLocalWuf->getConsecutiveRootIds();
     std::map<int, int>::const_iterator iter = consecutiveLocalIds.begin();
@@ -533,6 +537,7 @@ void ParallelUnionFind2DStripes::getMinMaxClusterSizes()
     int minClusterSize = mLocalWuf->getClusterSize(iter->first);
     int maxClusterSize = mLocalWuf->getClusterSize(iter->first);
 
+    int clusterId = 0;
     for (; iter != consecutiveLocalIds.end(); ++iter)
     {
         const int localRoot = iter->first;
@@ -540,6 +545,10 @@ void ParallelUnionFind2DStripes::getMinMaxClusterSizes()
 
         // If the cluster spans several procs, use mFinalWuf and globalRoot.
         int clusterSize = mFinalWuf->getClusterSize(globalRoot);
+
+        // We need the final id and not simply the global id for the histogram. For local clusters finalRoot == globalRoot.
+        // TODO: recheck this logic, whether finalRoot == globalRoot for the local clusters.
+        int finalRoot = mFinalWuf->getPixelRoot(globalRoot);
 
         // If cluster size is 0, then it is a (global label of a) local cluster, hence use the local cluster size.
         if (clusterSize <=0)
@@ -550,8 +559,10 @@ void ParallelUnionFind2DStripes::getMinMaxClusterSizes()
         minClusterSize = std::min(clusterSize, minClusterSize);
         maxClusterSize = std::max(clusterSize, maxClusterSize);
 
-        // TODO: make an array of cluster sizes residing on the current processor.
-        // TODO: distinguish those clusters that span several procs (will be used for the size histogram).
+        // Save the cluster size and its global root (will be used for the size histogram).
+        mClusterSizes.mSize[clusterId] = clusterSize;
+        mClusterSizes.mRoot[clusterId] = finalRoot;
+        ++clusterId;
     } // end for root
 
     // Get the final min/max values
@@ -712,4 +723,114 @@ void ParallelUnionFind2DStripes::printClusterStatistics(const std::string& fileN
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::printClusterSizeHistogram(const int bins, const std::string& fileName) const
 {
+    if (bins > 1)
+    {
+        const double binWidth = static_cast<double>(mMaxClusterSize - mMinClusterSize)/static_cast<double>(bins - 1);
+
+        // Calculate local size histogram for the current processor. Save the corresponding cluster root.
+        std::vector<double> localHistogram(bins);
+        std::multimap<int, int> rootsInBin; // Key - bin id (duplicates are possible), value - cluster root.
+
+        const int numOfLocalClusters = static_cast<int>(mClusterSizes.mRoot.size());
+        for (int id = 0; id < numOfLocalClusters; ++id)
+        {
+            int iChannel = static_cast<int>( (mClusterSizes.mSize[id] - mMinClusterSize)*1./binWidth + 0.5 );
+            rootsInBin.insert( std::pair<int, int>(id, mClusterSizes.mRoot[id]) );
+            ++localHistogram[iChannel];
+        }
+
+        // Calculate the incorrect global histogram.
+        // It is incorrect because those clusters that span several processors 
+        // are taken into account for several times (depending on the number of procs they span).
+        std::vector<double> finalHistogram(bins);
+        MPI_Reduce(&localHistogram[0], &finalHistogram[0], bins, MPI_DOUBLE, MPI_SUM, BOSS, MPI_COMM_WORLD);
+
+        // TODO: put this adjustment to a separate method.
+        // Adjust the values in every bin.
+        // Non-bosses pack the cluster roots to the vector and send them to the boss.
+        typedef std::multimap<int, int>::iterator mapIter;
+        if (BOSS != mDecompositionInfo.myRank)
+        {
+            // Put the roots sequentially in the array, separate bins with the -1 value.
+            std::vector<int> roots;
+            int binId = 0;
+            while (binId < bins)
+            {
+                // Get the range (using iterators) that contains the roots of the specified bin.
+                std::pair<mapIter, mapIter> range = rootsInBin.equal_range(binId);
+
+                // Pack the roots into the array.
+                for (mapIter rangeIter = range.first; rangeIter != range.second; ++rangeIter)
+                {
+                    roots.push_back( (*rangeIter).second );
+                }
+
+                // Separate the bin by the -1 divider.
+                roots.push_back(INVALID_VALUE);
+
+                ++binId;
+            }
+
+            // Send the packed values to the BOSS.
+            int numOfElements = roots.size();
+            MPI_Send(&numOfElements, 1, MPI_INT, BOSS, MSG_1, MPI_COMM_WORLD);
+
+            MPI_Send(&roots[0], numOfElements, MPI_INT, BOSS, MSG_1, MPI_COMM_WORLD);
+        }
+        else
+        {
+            // Boss receives the cluster roots, unpacks them and uses to adjust the histogram.
+            for (int procId = 1; procId < mDecompositionInfo.numOfProc; ++procId)
+            {
+                MPI_Status mpiStatus;
+                int numOfElements = 0;
+                // Receive the number of roots.
+                MPI_Recv(&numOfElements, 1, MPI_INT, procId, MSG_1, MPI_COMM_WORLD, &mpiStatus);
+
+                // Allocate the buffer.
+                std::vector<int> buffer(numOfElements);
+
+                // Receive the data.
+                MPI_Recv(&buffer[0], numOfElements, MPI_INT, procId, MSG_1, MPI_COMM_WORLD, &mpiStatus);
+
+                // Process the data.
+                int binId = 0;
+                int firstRootId = 0;
+                while (binId < bins)
+                {
+                    // TODO: See whether a root is in the corresponding bin.
+                    // If it is there, then it corresponds to a cluster that spans several processors. Diminish the histogram.
+                    // If it is not in the bin, add it for the future checks.
+                    std::pair<mapIter, mapIter> range = rootsInBin.equal_range(binId);
+
+                    int index = firstRootId;
+                    for (mapIter rangeIter = range.first; rangeIter != range.second; ++rangeIter)
+                    {
+                        // TODO: find the value of the buffer[index] in this range (*rangeIter).second;
+                        for (; index != INVALID_VALUE; ++index)
+                        {
+                            // if buffer[index] == (*rangeIter).second do --finalHistogram[binId]
+                            // else rootsInBin.insert(std::pair<int, int> (binId, buffer[index]))
+                        }
+                    }
+                    firstRootId = index;
+                    ++binId;
+                }
+            }
+        }
+
+        // TODO: put printing the histogram to a separate method.
+        // The final correct histogram is on the BOSS. Print it to a file.
+        if (BOSS == mDecompositionInfo.myRank)
+        {
+            // TODO: print here the histogram analogously to WeightedUnionFind.
+        }
+    }
+    else 
+    {
+        if (BOSS == mDecompositionInfo.myRank)
+        {
+            std::cerr << "Error: we need at least 2 bins for the cluster size histogram." << std::endl;
+        }
+    }
 }
