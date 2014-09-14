@@ -84,8 +84,10 @@ private:
     void broadcastMergeAndAddToAllMerges(const std::vector<int> & arrayToSend, std::vector<int> & arrayToReceive,int numOfMerges, int root);
     int calculateNumberOfGlobalLabels() const;
     void getUniqueLabelForEachComponent();
-    void getMinMaxClusterSizes();
 
+    // Data analysis.
+    void getMinMaxClusterSizes();
+    void lookForPercolation();
     void adjustFinalHistogram(const int bins, std::vector<double>& finalHistogram, std::multimap<int, int>& rootsInBin) const;
     void outputSizeHistogram(const int bins, const double binWidth, const std::string& fileName, const std::vector<double>& finalHistogram) const;
 

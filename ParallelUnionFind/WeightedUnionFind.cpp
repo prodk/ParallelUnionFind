@@ -225,23 +225,25 @@ void WeightedUnionFind::buildAndPrintSizeHistogram(const int bins, const std::st
 
         // Print the histogram to the file.
         std::ofstream histFile(fileOut);
+        const int numOfRoots = static_cast<int>(mRoots.size());
 
-        if (histFile.good())
+        if (histFile.good() && (numOfRoots > 0))
         {
             histFile.setf(std::ios::fixed,std::ios::floatfield); //histFile.width(10);
             double histSum = 0.;
             for (int i = 0; i < bins; ++i)
             {
-                histSum += static_cast<double>(sizeHistogram[i])/mRoots.size();
+                histSum += static_cast<double>(sizeHistogram[i])/numOfRoots;
                 histFile << i*delta + mMinClusterSize << "\t";
                 // Normalize only by the total number of islands (without delta).
-                histFile << static_cast<double>(sizeHistogram[i])/mRoots.size() << "\t" << histSum << std::endl;
+                histFile << static_cast<double>(sizeHistogram[i])/numOfRoots << "\t" << histSum << std::endl;
             }
+
             histFile.close();
         }
         else
         {
-            std::cerr << "Error: Bad histogram file." << std::endl;
+            std::cerr << "Error: Bad histogram file or 0 number of clusters." << std::endl;
         }
     } // End if delta > 0.
     else
