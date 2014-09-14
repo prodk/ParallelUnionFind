@@ -11,6 +11,7 @@ TestParallelUnionFind::TestParallelUnionFind(int argc, char **argv)
     : mNumOfProc(-1)
     , mMyRank(-1)
     , mPixels()
+    , mNumOfBins(6)
 {
     MPI_Init (&argc, &argv);
     MPI_Comm_size (MPI_COMM_WORLD, &mNumOfProc);
@@ -55,6 +56,7 @@ void TestParallelUnionFind::analyze(DecompositionInfo& info, const std::string& 
 #endif
 
         puf.printClusterStatistics("");
+        puf.printClusterSizeHistogram(mNumOfBins, "cont" + fileIn);
 
         //int bins = 1000;
         //puf.printClusterSizeHistogram(bins, "cont"+fileIn);

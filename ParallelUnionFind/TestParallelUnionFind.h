@@ -45,6 +45,7 @@ private:
     int mNumOfProc;
     int mMyRank;
     std::vector<int> mPixels;
+    int mNumOfBins;
 };
 
 //---------------------------------------------------------------------------

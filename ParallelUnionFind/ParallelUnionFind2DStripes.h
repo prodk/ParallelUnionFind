@@ -86,6 +86,9 @@ private:
     void getUniqueLabelForEachComponent();
     void getMinMaxClusterSizes();
 
+    void adjustFinalHistogram(const int bins, std::vector<double>& finalHistogram, std::multimap<int, int>& rootsInBin) const;
+    void outputSizeHistogram(const int bins, const double binWidth, const std::string& fileName, const std::vector<double>& finalHistogram) const;
+
     // Implementation helpers.
     void printLocalExtendedPicture(const DecompositionInfo& info) const;
     void printReceivedGlobalLabels() const;
