@@ -11,18 +11,6 @@
 // TODO: replace all the integers that relate to the system size by ptrdiff_t (necessary for the 64-bit JUQUEEN and huge systems).
 
 //---------------------------------------------------------------------------
-struct ClusterSizes
-{
-    ClusterSizes() : mSize(), mRoot() {}
-    explicit ClusterSizes(int N) : mSize(N), mRoot(N) {}
-
-    void resize(const int N) {mSize.resize(N); mRoot.resize(N);}
-
-    std::vector<int> mSize;             // Contains cluster sizes.
-    std::vector<int> mRoot;      // Root of the cluster which has the corresponding size.
-};
-
-//---------------------------------------------------------------------------
 class ParallelUnionFind2DStripes : public ParallelUnionFindImpl
 {
 public:
@@ -111,7 +99,7 @@ private:
     int mTotalNumOfClusters;                           // Number of connected components on all the processors.
     int mMinClusterSize;                               // Global value of the smallest cluster size.
     int mMaxClusterSize;                               // Global value of the largest cluster size.
-    ClusterSizes mClusterSizes;                        // Cluster sizes for the histogram.
+    std::map<int, int> mClusterSizes;                  // Cluster size is a key, root is a value. Important: use map to avoid duplicate copies.
 
     enum {INVALID_VALUE = -1, BOSS, MSG_1};            // BOSS is 0 by default.
 };

@@ -530,17 +530,14 @@ void ParallelUnionFind2DStripes::getMinMaxClusterSizes()
     const std::map<int, int>& consecutiveFinalIds = mFinalWuf->getConsecutiveRootIds();
     mTotalNumOfClusters = consecutiveFinalIds.size();
 
-    // Set the number of cluster sizes we're going to get.
-    mClusterSizes.resize(mGlobalLabels.size());
-
     // Loop over all the (local) roots residing on the current proc.
     const std::map<int, int>& consecutiveLocalIds = mLocalWuf->getConsecutiveRootIds();
     std::map<int, int>::const_iterator iter = consecutiveLocalIds.begin();
 
-    int minClusterSize = mLocalWuf->getClusterSize(iter->first);
-    int maxClusterSize = mLocalWuf->getClusterSize(iter->first);
+    // Important: use the final UF for initialization.
+    int minClusterSize = mDecompositionInfo.domainHeight * mDecompositionInfo.domainWidth;
+    int maxClusterSize = INVALID_VALUE;
 
-    int clusterId = 0;
     for (; iter != consecutiveLocalIds.end(); ++iter)
     {
         const int localRoot = iter->first;
@@ -561,9 +558,7 @@ void ParallelUnionFind2DStripes::getMinMaxClusterSizes()
         maxClusterSize = std::max(clusterSize, maxClusterSize);
 
         // Save the cluster size and its final root (will be used for the size histogram).
-        mClusterSizes.mSize[clusterId] = clusterSize;
-        mClusterSizes.mRoot[clusterId] = finalRoot;
-        ++clusterId;
+        mClusterSizes.insert( std::pair<int, int>(clusterSize, finalRoot) );
     } // end for root
 
     // Get the final min/max values.
@@ -741,14 +736,14 @@ void ParallelUnionFind2DStripes::printClusterSizeHistogram(const int bins, const
             std::vector<double> localHistogram(bins);
             std::multimap<int, int> rootsInBin; // Bin id is a key (duplicates are assumed), cluster root is value.
 
-            const int numOfLocalClusters = static_cast<int>(mClusterSizes.mRoot.size());
-            for (int id = 0; id < numOfLocalClusters; ++id)
+            std::map<int, int>::const_iterator iter;
+            for (iter = mClusterSizes.begin(); iter != mClusterSizes.end(); ++iter)
             {
-                int iChannel = static_cast<int>( (mClusterSizes.mSize[id] - mMinClusterSize)*1./binWidth + 0.5 );
-                rootsInBin.insert( std::pair<int, int>(iChannel, mClusterSizes.mRoot[id]) );
+                int iChannel = static_cast<int>( ( (*iter).first - mMinClusterSize)*1./binWidth + 0.5 );
+                rootsInBin.insert( std::pair<int, int>(iChannel, (*iter).second) );
                 ++localHistogram[iChannel];
             }
-            
+
             // Calculate the incorrect global histogram.
             // It is incorrect because those clusters that span several processors 
             // are taken into account for several times (depending on the number of procs they span).
@@ -799,7 +794,7 @@ void ParallelUnionFind2DStripes::adjustFinalHistogram(const int bins,
                 roots.push_back( (*rangeIter).second );
             }
 
-            // Separate the bin by the -1 divider.
+            // Separate the bin by the INVALID_VALUE divider.
             roots.push_back(INVALID_VALUE);
 
             ++binId;
@@ -823,26 +818,37 @@ void ParallelUnionFind2DStripes::adjustFinalHistogram(const int bins,
 
             // Allocate the buffer.
             std::vector<int> buffer(numOfElements);
-
             // Receive the data.
             MPI_Recv(&buffer[0], numOfElements, MPI_INT, procId, MSG_1, MPI_COMM_WORLD, &mpiStatus);
 
-            // Process the data.
+            // Process the data: eliminate those clusters from the histogram that has been counted more than once.
             int binId = 0;
-            int firstRootId = 0;
-            while (binId < bins)
+            int index = 0;
+            while (index < numOfElements)
             {
-                // Find whether a root is in the bin.
-                // If it is there, then it corresponds to a cluster that spans several processors. Diminish the histogram.
-                // If it is not in the bin, add it for the future checks.
+                // Skip all the empty bins.
+                while (INVALID_VALUE == buffer[index])
+                {
+                    ++binId;
+                    ++index;
+                }
+
+                // Get roots that are known to the BOSS in the current bin.
                 std::pair<mapIter, mapIter> range = rootsInBin.equal_range(binId);
 
-                int index = firstRootId;
+                // Needed to prevent looping over the newly added element (this would happen if rootsInBin was used instead).
+                std::multimap<int, int> bufferMap;
 
-                std::multimap<int, int> bufferMap; // Needed to prevent looping over the newly added element (this would happen if rootsInBin was used).
-                for (mapIter rangeIter = range.first; rangeIter != range.second; ++rangeIter)
+                // Loop over the received roots in the current bin and see whether BOSS knows about them.
+                while (INVALID_VALUE != buffer[index])
                 {
-                    while (buffer[index] != INVALID_VALUE) // Loop till the separator of a bin.
+                    // If the rootsInBins bin is empty then insert a new bin.
+                    if (range.first == range.second)
+                    {
+                        bufferMap.insert(std::pair<int, int> (binId, buffer[index]));
+                    }
+
+                    for (mapIter rangeIter = range.first; rangeIter != range.second; ++rangeIter)
                     {
                         if (buffer[index] == (*rangeIter).second)
                         {
@@ -852,20 +858,19 @@ void ParallelUnionFind2DStripes::adjustFinalHistogram(const int bins,
                         {
                             bufferMap.insert(std::pair<int, int> (binId, buffer[index]));
                         }
-                        ++index;
                     }
+                    ++index;
                 }
-                firstRootId = ++index; // Advance the index past the INVALID_VALUE.
+                ++index; // Go to the 1st element of the next bin.
+                ++binId;
 
                 // Copy the elements to the original map.
                 for (mapIter iter = bufferMap.begin(); iter != bufferMap.end(); ++iter)
                 {
                     rootsInBin.insert(std::pair<int, int> ( (*iter).first, (*iter).second ));
                 }
-
-                ++binId;
-            }
-        }
+            } // End while (index < numOfElements).
+        } // End for (int procId.
     }
 }
 

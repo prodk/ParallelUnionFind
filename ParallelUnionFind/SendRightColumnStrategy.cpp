@@ -38,8 +38,8 @@ void SendRightColumnStrategy::copyPixelStripeToSend(SPixelStripe & stripeToSend)
         }
         else
         {
-            stripeToSend.globalClusterId[iy] = -1;
-            stripeToSend.sizeOfCluster[iy] = -1;
+            stripeToSend.globalClusterId[iy] = INVALID_VALUE;
+            stripeToSend.sizeOfCluster[iy] = INVALID_VALUE;
         }
     }
 }
