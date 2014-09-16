@@ -76,6 +76,12 @@ private:
     // Data analysis.
     void getMinMaxClusterSizes();
     void lookForPercolation();
+    void lookForHorizontalPercolation();
+    void lookForVerticalPercolation();
+    int getFinalRootOfPixel(const int pixelId);
+    void printPercolationInfo() const;
+    void printPercolationPhrase(const std::string& contact, const std::string& vh, const int size) const;
+
     void adjustFinalHistogram(const int bins, std::vector<double>& finalHistogram, std::multimap<int, int>& rootsInBin) const;
     void outputSizeHistogram(const int bins, const double binWidth, const std::string& fileName, const std::vector<double>& finalHistogram) const;
 
@@ -100,6 +106,10 @@ private:
     int mMinClusterSize;                               // Global value of the smallest cluster size.
     int mMaxClusterSize;                               // Global value of the largest cluster size.
     std::map<int, int> mClusterSizes;                  // Cluster size is a key, root is a value. Important: use map to avoid duplicate copies.
+    bool mPercolatesHorizontally;                      // True if percolation in horizontal direction takes place.
+    bool mPercolatesVertically;
+    int mHorizPercolatedSize;                          // Size of the horizontally percolated cluster.
+    int mVertPercolatedSize;                           // Size of the vertically percolated cluster.
 
     enum {INVALID_VALUE = -1, BOSS, MSG_1};            // BOSS is 0 by default.
 };
