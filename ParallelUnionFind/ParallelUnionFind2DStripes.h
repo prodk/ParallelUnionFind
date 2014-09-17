@@ -64,7 +64,7 @@ private:
                                     const int pixelValue);
     void recordMerge(const int idp, const int idq);
 
-    bool isNeighborPixelValid(const int pixel) const;
+    bool isPixelValid(const int pixel) const;
     bool isClusterIdValid(const int pixel) const;
 
     // Stage 4 helpers.
@@ -84,6 +84,9 @@ private:
 
     void adjustFinalHistogram(const int bins, std::vector<double>& finalHistogram, std::multimap<int, int>& rootsInBin) const;
     void outputSizeHistogram(const int bins, const double binWidth, const std::string& fileName, const std::vector<double>& finalHistogram) const;
+
+    void packDataAndSendIt(const std::set<int>& data, const int destinationProc) const;
+    void receiveData(std::vector<int>& data, int& numOfElements, const int sendingProc) const;
 
     // Implementation helpers.
     void printLocalExtendedPicture(const DecompositionInfo& info) const;
