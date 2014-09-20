@@ -131,6 +131,7 @@ void ParallelUnionFind2DStripes::constructGlobalLabeling(void)
     }
 
 #ifdef _DEBUG
+    // TODO: put this to a separate method.
     // Print ids.
     std::cout << "Loc  LocConsec GlobalConsec" << std::endl;
     for (iter = consecutiveLocalIds.begin(); iter != consecutiveLocalIds.end(); ++iter)
@@ -548,6 +549,9 @@ void ParallelUnionFind2DStripes::getMinMaxClusterSizes()
         const int localRoot = iter->first;
         const int globalRoot = mGlobalLabels[iter->first];
         // Map the global root id to the final id. For local clusters finalRoot == globalRoot.
+
+        // Getting the final root using the global root (and not the pixel id as the function assumes)
+        // is correct in this case, because mFinalWuf is formed based on the root ids and not pixel ids.
         const int finalRoot = mFinalWuf->getPixelRoot(globalRoot); // TODO: recheck, this might be wrong.
 
         // Assume at first the cluster spans several procs, hence, use mFinalWuf and final cluster size.
@@ -737,42 +741,40 @@ void ParallelUnionFind2DStripes::printClusterSizeHistogram(const int bins, const
         const double binWidth = static_cast<double>(mMaxClusterSize - mMinClusterSize)/static_cast<double>(bins - 1);
 
         // Avoid division by 0.
-        if (binWidth > std::numeric_limits<double>::epsilon())
+        if (binWidth < std::numeric_limits<double>::epsilon())
         {
-            // Calculate local size histogram for the current processor. Save the corresponding cluster root.
-            std::vector<double> localHistogram(bins);
-            std::multimap<int, int> rootsInBin; // Bin id is a key (duplicates are assumed), cluster root is value.
-
-            std::map<int, int>::const_iterator iter;
-            for (iter = mClusterSizes.begin(); iter != mClusterSizes.end(); ++iter)
-            {
-                int iChannel = static_cast<int>( ( (*iter).second - mMinClusterSize)*1./binWidth + 0.5 );
-                rootsInBin.insert( std::pair<int, int>(iChannel, (*iter).first) );
-                ++localHistogram[iChannel];
-            }
-
-            // Calculate the incorrect global histogram.
-            // It is incorrect because those clusters that span several processors 
-            // are taken into account for several times (depending on the number of procs they span).
-            std::vector<double> finalHistogram(bins);
-            MPI_Reduce(&localHistogram[0], &finalHistogram[0], bins, MPI_DOUBLE, MPI_SUM, BOSS, MPI_COMM_WORLD);
-
-            // Ensure that clusters that span several processors are taken into account only once.
-            adjustFinalHistogram(bins, finalHistogram, rootsInBin);
-
-            outputSizeHistogram(bins, binWidth, fileName, finalHistogram);
+            std::cerr << " Warning: processor " << mDecompositionInfo.myRank
+                      << " binWidth is 0! Using binWidth == 1.0 to avoid division by 0." << std::endl;
         }
-        else
+        
+        // Calculate local size histogram for the current processor. Save the corresponding cluster root.
+        std::vector<double> localHistogram(bins);
+        std::multimap<int, int> rootsInBin; // Bin id is a key (duplicates are assumed), cluster root is value.
+
+        std::map<int, int>::const_iterator iter;
+        for (iter = mClusterSizes.begin(); iter != mClusterSizes.end(); ++iter)
         {
-            std::cerr << "Processor " << mDecompositionInfo.myRank << " Error: binWidth is 0! Cannot compute clustr size histogram." << std::endl;
-            MPI_Abort(MPI_COMM_WORLD, -1);
+            int iChannel = static_cast<int>( ( (*iter).second - mMinClusterSize)*1./binWidth + 0.5 );
+            rootsInBin.insert( std::pair<int, int>(iChannel, (*iter).first) );
+            ++localHistogram[iChannel];
         }
+
+        // Calculate the incorrect global histogram.
+        // It is incorrect because those clusters that span several processors 
+        // are taken into account for several times (depending on the number of procs they span).
+        std::vector<double> finalHistogram(bins);
+        MPI_Reduce(&localHistogram[0], &finalHistogram[0], bins, MPI_DOUBLE, MPI_SUM, BOSS, MPI_COMM_WORLD);
+
+        // Ensure that clusters that span several processors are taken into account only once.
+        adjustFinalHistogram(bins, finalHistogram, rootsInBin);
+
+        outputSizeHistogram(bins, binWidth, fileName, finalHistogram);
     }
     else 
     {
         if (BOSS == mDecompositionInfo.myRank)
         {
-            std::cerr << "Error: we need at least 2 bins for the cluster size histogram." << std::endl;
+            std::cerr << "Error: we need at least 2 bins for the cluster size histogram. The histogram has not been computed." << std::endl;
         }
     }
 }

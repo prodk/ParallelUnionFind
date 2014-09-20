@@ -8,6 +8,8 @@
 #include "ParallelUnionFindImpl.h"
 #include <vector>
 #include <iostream>
+#include <ctype.h>
+#include <mpi.h>
 
 //---------------------------------------------------------------------------
 class TestParallelUnionFind
@@ -18,12 +20,15 @@ public:
     void runTests();
 
 private:
+    void readInputParameters();
     void analyze(DecompositionInfo& info, const std::string& fileIn);
+    void testTheSystem();
     void test8();
     void test256();
     void test1k();
     void test4k();
     void test8k();
+    DecompositionInfo defineDecompositionInfo();
     DecompositionInfo defineDecomposition8();
     DecompositionInfo defineDecomposition256();
     DecompositionInfo defineDecomposition1k();
@@ -35,6 +40,8 @@ private:
     int readPixelsInParallel(const std::string& filePictureIn, const DecompositionInfo& info);
     void copyRelevantData(const std::vector<int>& allPixels, const DecompositionInfo& info);
     int indexTo1D(int ix, int iy, const DecompositionInfo& info) const;
+    std::string trimString(const std::string& str, const std::string& whitespace);
+    void saveInteger(int &number, const std::string& text);
 
 #ifdef _DEBUG
     void forceWindowToStay() const;
@@ -46,6 +53,8 @@ private:
     int mMyRank;
     std::vector<int> mPixels;
     int mNumOfBins;
+    std::string mPictureFile;
+    int mSystemSize;
 };
 
 //---------------------------------------------------------------------------
@@ -71,6 +80,35 @@ inline void TestParallelUnionFind::fillInDecompositionInfo(DecompositionInfo& in
     info.numOfProc = mNumOfProc;
     info.pixels = 0;
     info.periodicBoundaryX = false;
+}
+
+//---------------------------------------------------------------------------
+inline std::string TestParallelUnionFind::trimString(const std::string& str, const std::string& whitespace = " \t")
+{
+    const std::size_t strBegin = str.find_first_not_of(whitespace);
+    if (strBegin == std::string::npos)
+    {
+        return ""; // no content
+    }
+
+    const std::size_t strEnd = str.find_last_not_of(whitespace);
+    const std::size_t strRange = strEnd - strBegin + 1;
+
+    return str.substr(strBegin, strRange);
+}
+
+//---------------------------------------------------------------------------
+inline void TestParallelUnionFind::saveInteger(int &number, const std::string& text)
+{
+    if (isdigit(text[0]))
+    {
+        number = atoi(text.c_str());
+    }
+    else
+    {
+        std::cerr << "Cannot convert this string " << text << " to integer" << std::endl;
+        MPI_Abort(MPI_COMM_WORLD, -1);
+    }
 }
 
 #endif // TEST_PARALLEL_UNION_FIND

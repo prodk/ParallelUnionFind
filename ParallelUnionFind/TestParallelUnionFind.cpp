@@ -1,10 +1,12 @@
 // TestParallelUnionFind.cpp - implementation of the TestParallelUnionFind class.
+// Note: this test client is assumed to be run on a small number of processors (order of 1 - 10)
+// and small systems (linear size ~ 10^1 - 10 ^3)
+// because it does not use any parallel I/O which will be a bottleneck if the mentioned conditions are violated.
 
 #include "TestParallelUnionFind.h"
 #include "ParallelUnionFind.h"
 #include <fstream>
 #include <sstream>
-#include <mpi.h>
 
 //---------------------------------------------------------------------------
 TestParallelUnionFind::TestParallelUnionFind(int argc, char **argv)
@@ -12,10 +14,14 @@ TestParallelUnionFind::TestParallelUnionFind(int argc, char **argv)
     , mMyRank(-1)
     , mPixels()
     , mNumOfBins(6)
+    , mPictureFile("8by8.dat")
+    , mSystemSize(8)
 {
     MPI_Init (&argc, &argv);
     MPI_Comm_size (MPI_COMM_WORLD, &mNumOfProc);
     MPI_Comm_rank (MPI_COMM_WORLD, &mMyRank);
+
+    readInputParameters();
 }
 
 //---------------------------------------------------------------------------
@@ -26,13 +32,67 @@ TestParallelUnionFind::~TestParallelUnionFind(void)
 }
 
 //---------------------------------------------------------------------------
+void TestParallelUnionFind::readInputParameters()
+{
+    // Every processor reads the input parameters.
+    // This will be a bottleneck when we have a big number of processors.
+    // But we assume that this test client will not run on many processors.
+
+    // We assume a file 'input.txt' that contains the picture file path, system size (square), number of bins, BCs.
+    const std::string inputFile = "input.txt";
+
+    // Read and parse the file.
+    std::ifstream fileIn(inputFile);
+    if (fileIn.good())
+    {
+        const std::string comment = "#";
+        const size_t numOfParams = 3;
+        std::string line;
+        std::size_t paramCount = 0;
+
+        while ((paramCount < numOfParams) && std::getline(fileIn, line))
+        {
+            // Look for comments.
+            std::size_t found = line.find_first_of(comment);
+            if (std::string::npos != found)
+            {
+                line.erase(found);
+            }
+
+            // Trim the white spaces and save the parameter.
+            std::string paramLine = trimString(line);
+            if ("" != paramLine)
+            {
+                switch (paramCount)
+                {
+                case 0:       // mPictureFile
+                    mPictureFile = paramLine;
+                    break;
+                case 1:       // mSystemSize
+                    saveInteger(mSystemSize, paramLine);
+                    break;
+                case 2:
+                    break;    // mNumOfBins
+                    saveInteger(mNumOfBins, paramLine);
+                }
+                ++paramCount;
+            }
+        } // End while eof.
+
+        fileIn.close();
+    }
+    else
+    {
+        std::cerr << "Cannot read the input file." << std::endl;
+        MPI_Abort(MPI_COMM_WORLD, -1);
+    }
+}
+
+//---------------------------------------------------------------------------
 void TestParallelUnionFind::runTests()
 {
-    test8();
-    //test256();
-    //test1k();
-    //test4k();
-    //test8k();
+    testTheSystem();
+    // We can call here the built-in methods such as test8() etc.
 #ifdef _DEBUG
     forceWindowToStay();
 #endif
@@ -58,9 +118,6 @@ void TestParallelUnionFind::analyze(DecompositionInfo& info, const std::string& 
         puf.printClusterStatistics("");
         puf.printClusterSizeHistogram(mNumOfBins, "cont" + fileIn);
 
-        //int bins = 1000;
-        //puf.printClusterSizeHistogram(bins, "cont"+fileIn);
-
         // Analyze non-contact.
         /*std::cout << std::endl;
         const int pixelvalue = 0;
@@ -68,8 +125,15 @@ void TestParallelUnionFind::analyze(DecompositionInfo& info, const std::string& 
         puf.analyze();
         puf.printPerProcessorClusterStatistics("");
         puf.printPerProcessorClusterSizes("");*/
-        //puf.printPerProcessorClusterSizeHistogram(bins, "ncont"+fileIn);
+        //puf.printPerProcessorClusterSizeHistogram(mNumOfBins, "ncont"+fileIn);
     }
+}
+
+//---------------------------------------------------------------------------
+void TestParallelUnionFind::testTheSystem()
+{
+    DecompositionInfo info = defineDecompositionInfo();
+    analyze(info, mPictureFile);
 }
 
 //---------------------------------------------------------------------------
@@ -105,6 +169,17 @@ void TestParallelUnionFind::test8k()
 {
     DecompositionInfo info = defineDecomposition8k();
     analyze(info, "picture_H08_4a_8k_p_0_1.dat");
+}
+
+//---------------------------------------------------------------------------
+DecompositionInfo TestParallelUnionFind::defineDecompositionInfo()
+{
+    DecompositionInfo info;
+
+    const int size = mSystemSize;
+    fillInDecompositionInfo(info, size);
+
+    return info;
 }
 
 //---------------------------------------------------------------------------
@@ -206,6 +281,12 @@ int TestParallelUnionFind::readPixels(std::vector<int>& pixels,
 
         fileIn.close();
     }
+    else
+    {
+        std::cerr << "Error: Cannot read the picture file." << std::endl;
+        MPI_Abort(MPI_COMM_WORLD, -1);
+    }
+
     return 0;
 }
 
@@ -216,8 +297,10 @@ int TestParallelUnionFind::readPixelsInParallel(const std::string& filePictureIn
     mPixels.resize(info.domainWidth*info.domainHeight);
 
     // For testing purposes only: read the whole file and then choose the data that the current proc needs.
+    // This will be a bottleneck when we have a big number of processors.
+    // But we assume that this test client will not run on many processors.
     std::vector<int> allPixels;
-    allPixels.resize(info.domainHeight*info.domainWidth*mNumOfProc);
+    allPixels.resize(info.domainHeight * info.domainWidth * mNumOfProc);
 
     readPixels(allPixels, filePictureIn, info);
 
@@ -229,6 +312,7 @@ int TestParallelUnionFind::readPixelsInParallel(const std::string& filePictureIn
     return 0;
 }
 
+//---------------------------------------------------------------------------
 void TestParallelUnionFind::copyRelevantData(const std::vector<int>& allPixels, const DecompositionInfo& info)
 {
     // Choose the data that corresponds to the current processor.
