@@ -112,7 +112,7 @@ void ParallelUnionFind2DStripes::runLocalUnionFind(void)
 void ParallelUnionFind2DStripes::constructGlobalLabeling(void)
 {
     // Get local consecutive labels of the clusters.
-    const std::map<int, int>& consecutiveLocalIds = mLocalWuf->getConsecutiveRootIds();
+    const std::map<std::ptrdiff_t, std::ptrdiff_t>& consecutiveLocalIds = mLocalWuf->getConsecutiveRootIds();
 
     // Get the offset from the procs with smaller ids.
     const int numOfClustersOnSmallerProcIds = receiveNumberOfClustersFromPreviousProcs();
@@ -122,7 +122,7 @@ void ParallelUnionFind2DStripes::constructGlobalLabeling(void)
     sendTotalClustersToNextProcs(numOfClustersOnSmallerProcIds, numOfMyClusters);
 
     // Construct global consecutive ids of the clusters.
-    std::map<int, int>::const_iterator iter;
+    std::map<std::ptrdiff_t, std::ptrdiff_t>::const_iterator iter;
     for (iter = consecutiveLocalIds.begin(); iter != consecutiveLocalIds.end(); ++iter)
     {
         mGlobalLabels[iter->first] =                     // Non-consecutive local root is a key (i.e. iter->first).
@@ -131,13 +131,7 @@ void ParallelUnionFind2DStripes::constructGlobalLabeling(void)
     }
 
 #ifdef _DEBUG
-    // TODO: put this to a separate method.
-    // Print ids.
-    std::cout << "Loc  LocConsec GlobalConsec" << std::endl;
-    for (iter = consecutiveLocalIds.begin(); iter != consecutiveLocalIds.end(); ++iter)
-    {
-        std::cout << iter->first << "\t" << iter->second << "\t" << mGlobalLabels[iter->first] << std::endl;
-    }
+    printConsecutiveIds(consecutiveLocalIds);
 #endif
 }
 
@@ -553,7 +547,7 @@ void ParallelUnionFind2DStripes::getMinMaxClusterSizes()
 
         // Getting the final root using the global root (and not the pixel id as the function assumes)
         // is correct in this case, because mFinalWuf is formed based on the root ids and not pixel ids.
-        const int finalRoot = mFinalWuf->getPixelRoot(globalRoot); // TODO: recheck, this might be wrong.
+        const int finalRoot = mFinalWuf->getPixelRoot(globalRoot);
 
         // Assume at first the cluster spans several procs, hence, use mFinalWuf and final cluster size.
         int clusterSize = mFinalWuf->getClusterSize(finalRoot);
@@ -579,6 +573,513 @@ void ParallelUnionFind2DStripes::getMinMaxClusterSizes()
     // Broadcast the values to others for calculating the cluster size histogram.
     MPI_Bcast(&mMinClusterSize, 1, MPI_INT, BOSS, MPI_COMM_WORLD);
     MPI_Bcast(&mMaxClusterSize, 1, MPI_INT, BOSS, MPI_COMM_WORLD);
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::setPixelValue(const int value)
+{
+    mDecompositionInfo.pixelValue = value;
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::printClusterSizeHistogram(const int bins, const std::string& fileName) const
+{
+    if (bins > 1)
+    {
+        const double binWidth = static_cast<double>(mMaxClusterSize - mMinClusterSize)/static_cast<double>(bins - 1);
+
+        // Avoid division by 0.
+        if (binWidth < std::numeric_limits<double>::epsilon())
+        {
+            std::cerr << " Warning: processor " << mDecompositionInfo.myRank
+                      << " binWidth is 0! Using binWidth == 1.0 to avoid division by 0." << std::endl;
+        }
+
+        if (1 == mDecompositionInfo.numOfProc)
+        {
+            printPerProcessorClusterSizeHistogram(bins, fileName);
+        }
+        else
+        {
+            // Calculate local size histogram for the current processor. Save the corresponding cluster root.
+            std::vector<double> localHistogram(bins);
+            std::multimap<int, int> rootsInBin; // Bin id is a key (duplicates are assumed), cluster root is value.
+
+            std::map<int, int>::const_iterator iter;
+            for (iter = mClusterSizes.begin(); iter != mClusterSizes.end(); ++iter)
+            {
+                int iChannel = static_cast<int>( ( (*iter).second - mMinClusterSize)*1./binWidth + 0.5 );
+                rootsInBin.insert( std::pair<int, int>(iChannel, (*iter).first) );
+                ++localHistogram[iChannel];
+            }
+
+            // Calculate the incorrect global histogram.
+            // It is incorrect because those clusters that span several processors 
+            // are taken into account for several times (depending on the number of procs they span).
+            std::vector<double> finalHistogram(bins);
+            MPI_Reduce(&localHistogram[0], &finalHistogram[0], bins, MPI_DOUBLE, MPI_SUM, BOSS, MPI_COMM_WORLD);
+
+            // Ensure that clusters that span several processors are taken into account only once.
+            adjustFinalHistogram(bins, finalHistogram, rootsInBin);
+
+            outputSizeHistogram(bins, binWidth, fileName, finalHistogram);
+        } // End if more than one processor.
+    }
+    else 
+    {
+        if (BOSS == mDecompositionInfo.myRank)
+        {
+            std::cerr << "Error: we need at least 2 bins for the cluster size histogram. The histogram has not been computed." << std::endl;
+        }
+    }
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::adjustFinalHistogram(const int bins,
+                                                      std::vector<double>& finalHistogram,
+                                                      std::multimap<std::ptrdiff_t, std::ptrdiff_t>& rootsInBin) const
+{
+    // Non-bosses pack the cluster roots to the vector and send them to the boss.
+    adjustFinalHistogramIfSlave(bins, rootsInBin);
+
+     // Boss receives the cluster roots, unpacks them and uses to adjust the histogram.
+    adjustFinalHistogramIfBoss(bins, finalHistogram, rootsInBin);
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::adjustFinalHistogramIfSlave(const int bins, std::multimap<std::ptrdiff_t, std::ptrdiff_t>& rootsInBin) const
+{
+    typedef std::multimap<std::ptrdiff_t, std::ptrdiff_t>::iterator mapIter;
+    if (BOSS != mDecompositionInfo.myRank)
+    {
+        // Put the roots sequentially in the array, separate bins with the INVALID_VALUE.
+        std::vector<std::ptrdiff_t> roots;
+        int binId = 0;
+        while (binId < bins)
+        {
+            // Get the range that contains the roots of the specified bin.
+            std::pair<mapIter, mapIter> range = rootsInBin.equal_range(binId);
+
+            // Pack the roots into the array.
+            for (mapIter rangeIter = range.first; rangeIter != range.second; ++rangeIter)
+            {
+                roots.push_back( (*rangeIter).second );
+            }
+
+            // Separate the bin with the INVALID_VALUE divider.
+            roots.push_back(INVALID_VALUE);
+            ++binId;
+        }
+
+        // Send the packed values to the BOSS.
+        int numOfElements = roots.size();
+        MPI_Send(&numOfElements, 1, MPI_INT, BOSS, MSG_1, MPI_COMM_WORLD);
+        MPI_Send(&roots[0], numOfElements, MPI_INT, BOSS, MSG_1, MPI_COMM_WORLD);
+    }
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::adjustFinalHistogramIfBoss(const int bins,
+                                                            std::vector<double>& finalHistogram,
+                                                            std::multimap<std::ptrdiff_t, std::ptrdiff_t>& rootsInBin) const
+{
+    typedef std::multimap<std::ptrdiff_t, std::ptrdiff_t>::iterator mapIter;
+    if (BOSS == mDecompositionInfo.myRank)
+    {
+        // Boss receives the cluster roots, unpacks them and uses to adjust the histogram.
+        for (int procId = 1; procId < mDecompositionInfo.numOfProc; ++procId)
+        {
+            int numOfElements = 0;
+            std::vector<std::ptrdiff_t> buffer(numOfElements);
+            receiveData(buffer, numOfElements, procId);
+
+            // Process the data: eliminate those clusters from the histogram that has been counted more than once.
+            int binId = 0;
+            int index = 0;
+label:
+            while ( (index < numOfElements) && (binId < bins) )
+            {
+                // Skip all the empty bins.
+                while (INVALID_VALUE == buffer[index])
+                {
+                    ++binId;
+                    ++index;
+                    goto label; // Use goto to be sure that other loops are not affected.
+                }
+
+                // Get roots that are known to the BOSS in the current bin.
+                std::pair<mapIter, mapIter> range = rootsInBin.equal_range(binId);
+
+                // Needed to prevent looping over the newly added element (this would happen if rootsInBin was used instead).
+                std::multimap<std::ptrdiff_t, std::ptrdiff_t> bufferMap;
+
+                // Loop over the received roots in the current bin and see whether BOSS knows about them.
+                while (INVALID_VALUE != buffer[index])
+                {
+                    // If the rootsInBins bin is empty then insert a new bin.
+                    if (range.first == range.second)
+                    {
+                        bufferMap.insert(std::pair<std::ptrdiff_t, std::ptrdiff_t> (binId, buffer[index]));
+                    }
+
+                    for (mapIter rangeIter = range.first; rangeIter != range.second; ++rangeIter)
+                    {
+                        if (buffer[index] == (*rangeIter).second)
+                        {
+                            --finalHistogram[binId];
+                        }
+                        else
+                        {
+                            bufferMap.insert(std::pair<std::ptrdiff_t, std::ptrdiff_t> (binId, buffer[index]));
+                        }
+                    }
+                    ++index;
+                }
+                ++index; // Go to the 1st element of the next bin.
+                ++binId;
+
+                // Copy the elements to the original map.
+                for (mapIter iter = bufferMap.begin(); iter != bufferMap.end(); ++iter)
+                {
+                    rootsInBin.insert(std::pair<std::ptrdiff_t, std::ptrdiff_t> ( (*iter).first, (*iter).second ));
+                }
+            } // End while (index < numOfElements).
+        } // End for (int procId.
+    }
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::outputSizeHistogram(const int bins,
+                                                     const double binWidth,
+                                                     const std::string& fileName,
+                                                     const std::vector<double>& finalHistogram) const
+{
+    // The final correct histogram is on the BOSS. Print it to a file.
+    if (BOSS == mDecompositionInfo.myRank)
+    {
+        std::ofstream histFile(fileName);
+
+        if (histFile.good() && (mTotalNumOfClusters > 0))
+        {
+            histFile.setf(std::ios::fixed,std::ios::floatfield); //histFile.width(10);
+            double histSum = 0.;
+            for (int i = 0; i < bins; ++i)
+            {
+                histSum += static_cast<double>(finalHistogram[i])/mTotalNumOfClusters;
+                histFile << i*binWidth + mMinClusterSize << "\t";
+                // Normalize only by the total number of islands (without delta).
+
+                histFile << static_cast<double>(finalHistogram[i])/mTotalNumOfClusters << "\t" << histSum << std::endl;
+                //histFile << static_cast<double>(finalHistogram[i]) << "\t" << histSum << std::endl; // DEBUG: no normalization.
+            }
+            histFile.close();
+        }
+        else
+        {
+            std::cerr << "Error: Bad histogram file." << std::endl;
+        }
+    }
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::lookForPercolation()
+{
+    lookForHorizontalPercolation();
+    lookForVerticalPercolation();
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::lookForHorizontalPercolation()
+{
+    if (mDecompositionInfo.numOfProc > 1)
+    {
+        bossLookForHorizontalPercolation();
+        slaveLookForHorizontalPercolation();
+    }
+    else
+    {
+        lookForHorizontalPercolation1Proc();
+    }
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::bossLookForHorizontalPercolation()
+{
+    if (BOSS == mDecompositionInfo.myRank)
+    {
+        // BOSS loops over the leftmost stripe of pixels and gets their final roots.
+        std::set<int> leftMostVericalPixelRoots; // Use set to eliminate duplicates.
+        for (std::ptrdiff_t iy = 0u; iy < mDecompositionInfo.domainHeight; ++iy)
+        {
+            const int finalRoot = getFinalRootOfPixel(iy);
+            if (INVALID_VALUE != finalRoot)
+            {
+                leftMostVericalPixelRoots.insert(finalRoot);
+            }
+        }
+
+        // Receive the right-most roots from the last processor.
+        int numOfReceivedRoots = 0;
+        std::vector<int> rightMostVerticalPixelRoots;
+        receiveData(rightMostVerticalPixelRoots, numOfReceivedRoots, mDecompositionInfo.numOfProc - 1);
+
+        // Loop over the received roots and see whether one of them is in the BOSS roots.
+        for (int id = 0; id < numOfReceivedRoots; ++id)
+        {
+            const int currentRoot = rightMostVerticalPixelRoots[id];
+            if ( leftMostVericalPixelRoots.find(currentRoot) != leftMostVericalPixelRoots.end() )
+            {
+                mPercolatesHorizontally = true;
+                mHorizPercolatedSize = mFinalWuf->getClusterSize(currentRoot);
+                // TODO: Check cluster size for <= 0. If it is, then it is a local root, so use its local size.
+                /*if (mHorizPercolatedSize <= 0)
+                {
+                mHorizPercolatedSize
+                }*/
+                break;
+            }
+        }
+    }
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::slaveLookForHorizontalPercolation()
+{
+    if (mDecompositionInfo.numOfProc - 1 == mDecompositionInfo.myRank)
+    {
+        // The last processor loops over the rightmost pixel stripe and gets its roots.
+        std::set<int> rightMostVerticalPixelRoots;
+        const int lastStripeStart = (mDecompositionInfo.domainWidth - 1)*mDecompositionInfo.domainHeight;
+        for (std::ptrdiff_t iy = 0; iy < mDecompositionInfo.domainHeight; ++iy)
+        {
+            const int finalRoot = getFinalRootOfPixel(iy + lastStripeStart);
+            if (INVALID_VALUE != finalRoot)
+            {
+                rightMostVerticalPixelRoots.insert(finalRoot);
+            }
+        }
+
+        // Pack the roots for sending.
+        packDataAndSendIt(rightMostVerticalPixelRoots, BOSS);
+    }
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::lookForHorizontalPercolation1Proc()
+{
+    // Loop over the leftmost stripe of pixels and gets their final roots.
+    std::set<int> leftMostVericalPixelRoots; // Use set to eliminate duplicates.
+    for (std::ptrdiff_t iy = 0u; iy < mDecompositionInfo.domainHeight; ++iy)
+    {
+        const int finalRoot = getFinalRootOfPixel(iy);
+        if (INVALID_VALUE != finalRoot)
+        {
+            leftMostVericalPixelRoots.insert(finalRoot);
+        }
+    }
+
+    // Loop over the rightmost pixel stripe and get its roots.
+    std::set<int> rightMostVerticalPixelRoots;
+    const int lastStripeStart = (mDecompositionInfo.domainWidth - 1)*mDecompositionInfo.domainHeight;
+    for (std::ptrdiff_t iy = 0; iy < mDecompositionInfo.domainHeight; ++iy)
+    {
+        const int finalRoot = getFinalRootOfPixel(iy + lastStripeStart);
+        if (INVALID_VALUE != finalRoot)
+        {
+            rightMostVerticalPixelRoots.insert(finalRoot);
+        }
+    }
+
+    // Loop over the rightmost roots and see whether one of them is in the BOSS roots.
+    std::set<int>::iterator iter = rightMostVerticalPixelRoots.begin();
+    for (; iter != rightMostVerticalPixelRoots.end(); ++iter)
+    {
+        const int currentRoot = *iter;
+        if ( leftMostVericalPixelRoots.find(currentRoot) != leftMostVericalPixelRoots.end() )
+        {
+            mPercolatesHorizontally = true;
+            mHorizPercolatedSize = mFinalWuf->getClusterSize(currentRoot);
+            // TODO: Check cluster size for <= 0. If it is, then it is a local root, so use its local size.
+            /*if (mHorizPercolatedSize <= 0)
+            {
+                mHorizPercolatedSize
+            }*/
+            break;
+        }
+    }
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::lookForVerticalPercolation()
+{
+    // Every proc gets roots of the top-/bottom-most pixel stripe.
+    std::set<int> topmostRoots;
+    std::set<int> bottommostRoots;
+    for (int ix = 0; ix < mDecompositionInfo.domainWidth; ++ix)
+    {
+        const int topRoot = getFinalRootOfPixel(ix * mDecompositionInfo.domainHeight);
+        if (INVALID_VALUE != topRoot)
+        {
+            topmostRoots.insert(topRoot);
+        }
+
+        const int bottomRoot = getFinalRootOfPixel(mDecompositionInfo.domainHeight * (ix + 1) - 1);
+        if (INVALID_VALUE != bottomRoot)
+        {
+            bottommostRoots.insert(bottomRoot);
+        }
+    }
+
+    // Non-bosses send these data to the BOSS.
+    if (BOSS != mDecompositionInfo.myRank)
+    {
+        packDataAndSendIt(topmostRoots, BOSS);
+        packDataAndSendIt(bottommostRoots, BOSS);
+    }
+    else
+    {
+        bossLookForVerticalPercolation(topmostRoots, bottommostRoots);
+    }
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::bossLookForVerticalPercolation(std::set<int>& topmostRoots,
+                                                                std::set<int>& bottommostRoots)
+{
+    // BOSS receives the roots.
+    for (int procId = 1; procId < mDecompositionInfo.numOfProc; ++procId)
+    {
+        // Receive and save the topmost roots.
+        int numOfReceivedRoots = 0;
+        std::vector<int> dataToReceive;
+        receiveData(dataToReceive, numOfReceivedRoots, procId);
+        // Save the data to the BOSS's set.
+        if (numOfReceivedRoots > 0)
+        {
+            std::copy( dataToReceive.begin(), dataToReceive.end(), std::inserter( topmostRoots, topmostRoots.end() ) );
+        }
+
+        // Receive and save the bottommost roots.
+        receiveData(dataToReceive, numOfReceivedRoots, procId);
+        if (numOfReceivedRoots > 0)
+        {
+            std::copy( dataToReceive.begin(), dataToReceive.end(), std::inserter( bottommostRoots, bottommostRoots.end() ) );
+        }
+    }
+
+    // BOSS searches for at least one coincidence of the top and bottom roots.
+    std::set<int>::iterator iter = topmostRoots.begin();
+    for (; iter != topmostRoots.end(); ++iter)
+    {
+        const int currentRoot = *iter;
+        if ( bottommostRoots.find(currentRoot) != bottommostRoots.end() )
+        {
+            mPercolatesVertically = true;
+            mVertPercolatedSize = mFinalWuf->getClusterSize(currentRoot);
+            // TODO: Check cluster size for <= 0. If it is, then it is a local root, so use its local size.
+            /*if (mVertPercolatedSize <= 0)
+            {
+                mVertPercolatedSize
+            }*/
+            break;
+        }
+    }
+}
+
+//---------------------------------------------------------------------------
+std::ptrdiff_t ParallelUnionFind2DStripes::getFinalRootOfPixel(const int pixelId)
+{
+    std::ptrdiff_t finalRoot = INVALID_VALUE;
+
+    const std::ptrdiff_t localRoot = mLocalWuf->getPixelRoot(pixelId);
+    if (mLocalWuf->getClusterSize(localRoot) > 0) // Look only at the pixels of interest.
+    {
+        const std::ptrdiff_t globalRoot = mGlobalLabels[localRoot];
+        // Getting the final root using the global root (and not the pixel id as the function assumes)
+        // is correct in this case, because mFinalWuf is formed based on the root ids and not pixel ids.
+        finalRoot = mFinalWuf->getPixelRoot(globalRoot);
+    }
+
+    return finalRoot;
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::printPercolationInfo() const
+{
+    if (BOSS == mDecompositionInfo.myRank)
+    {
+        std::string h = " horizontal ";
+        std::string v = " vertical ";
+
+        std::string contact = " contact ";
+        if (0 == mDecompositionInfo.pixelValue)
+        {
+            contact = " non-contact ";
+        }
+
+        if (mPercolatesHorizontally)
+        {
+            printPercolationPhrase(contact, h, mHorizPercolatedSize);
+        }
+
+        if (mPercolatesVertically)
+        {
+            printPercolationPhrase(contact, v, mVertPercolatedSize);
+        }
+    }
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::printPercolationPhrase(const std::string& contact, const std::string& vh, const int size) const
+{
+    std::cout << "# There is at least one" << contact << " cluster percolating in" << vh << "direction" << std:: endl;
+    std::cout << "Cluster size is " << size << std::endl;
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::packDataAndSendIt(const std::set<int>& data, const int destinationProc) const
+{
+    std::vector<int> dataToSend;
+    int numOfRoots = 0;
+
+    std::set<int>::iterator iter = data.begin();
+    for (; iter != data.end(); ++iter)
+    {
+        dataToSend.push_back( *iter );
+        ++numOfRoots;
+    }
+
+    MPI_Send(&numOfRoots, 1, MPI_INT, destinationProc, MSG_1, MPI_COMM_WORLD);
+
+    if (numOfRoots > 0)
+    {
+        MPI_Send(&dataToSend[0], numOfRoots, MPI_INT, destinationProc, MSG_1, MPI_COMM_WORLD);
+    }
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::receiveData(std::vector<int>& data, int& numOfElements, const int sendingProc) const
+{
+    MPI_Status mpiStatus;
+    numOfElements = 0;
+    MPI_Recv(&numOfElements, 1, MPI_INT, sendingProc, MSG_1, MPI_COMM_WORLD, &mpiStatus);
+
+    if (numOfElements > 0)
+    {
+        data.resize(numOfElements);
+        MPI_Recv(&data[0], numOfElements, MPI_INT, sendingProc, MSG_1, MPI_COMM_WORLD, &mpiStatus);
+    }
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::printConsecutiveIds(const std::map<std::ptrdiff_t, std::ptrdiff_t>& consecutiveLocalIds)
+{
+    std::cout << "Loc  LocConsec GlobalConsec" << std::endl;
+    std::map<int, int>::const_iterator iter;
+    for (iter = consecutiveLocalIds.begin(); iter != consecutiveLocalIds.end(); ++iter)
+    {
+        std::cout << iter->first << "\t" << iter->second << "\t" << mGlobalLabels[iter->first] << std::endl;
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -623,12 +1124,6 @@ void ParallelUnionFind2DStripes::printPerProcessorClusterStatistics(const std::s
 void ParallelUnionFind2DStripes::printPerProcessorClusterSizeHistogram(const int bins, const std::string& fileName) const
 {
     mLocalWuf->printClusterSizeHistogram(bins, fileName);
-}
-
-//---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::setPixelValue(const int value)
-{
-    mDecompositionInfo.pixelValue = value;
 }
 
 //---------------------------------------------------------------------------
@@ -730,441 +1225,5 @@ void ParallelUnionFind2DStripes::printClusterStatistics(const std::string& fileN
         std::cout << "Max cluster: " << mMaxClusterSize << std::endl;
 
         printPercolationInfo();
-    }
-}
-
-//---------------------------------------------------------------------------
-// TODO: introduce the version for 1 processor.
-void ParallelUnionFind2DStripes::printClusterSizeHistogram(const int bins, const std::string& fileName) const
-{
-    if (bins > 1)
-    {
-        const double binWidth = static_cast<double>(mMaxClusterSize - mMinClusterSize)/static_cast<double>(bins - 1);
-
-        // Avoid division by 0.
-        if (binWidth < std::numeric_limits<double>::epsilon())
-        {
-            std::cerr << " Warning: processor " << mDecompositionInfo.myRank
-                      << " binWidth is 0! Using binWidth == 1.0 to avoid division by 0." << std::endl;
-        }
-        
-        // Calculate local size histogram for the current processor. Save the corresponding cluster root.
-        std::vector<double> localHistogram(bins);
-        std::multimap<int, int> rootsInBin; // Bin id is a key (duplicates are assumed), cluster root is value.
-
-        std::map<int, int>::const_iterator iter;
-        for (iter = mClusterSizes.begin(); iter != mClusterSizes.end(); ++iter)
-        {
-            int iChannel = static_cast<int>( ( (*iter).second - mMinClusterSize)*1./binWidth + 0.5 );
-            rootsInBin.insert( std::pair<int, int>(iChannel, (*iter).first) );
-            ++localHistogram[iChannel];
-        }
-
-        // Calculate the incorrect global histogram.
-        // It is incorrect because those clusters that span several processors 
-        // are taken into account for several times (depending on the number of procs they span).
-        std::vector<double> finalHistogram(bins);
-        MPI_Reduce(&localHistogram[0], &finalHistogram[0], bins, MPI_DOUBLE, MPI_SUM, BOSS, MPI_COMM_WORLD);
-
-        // Ensure that clusters that span several processors are taken into account only once.
-        adjustFinalHistogram(bins, finalHistogram, rootsInBin);
-
-        outputSizeHistogram(bins, binWidth, fileName, finalHistogram);
-    }
-    else 
-    {
-        if (BOSS == mDecompositionInfo.myRank)
-        {
-            std::cerr << "Error: we need at least 2 bins for the cluster size histogram. The histogram has not been computed." << std::endl;
-        }
-    }
-}
-
-//---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::adjustFinalHistogram(const int bins,
-                                                      std::vector<double>& finalHistogram,
-                                                      std::multimap<std::ptrdiff_t, std::ptrdiff_t>& rootsInBin) const
-{
-    // TODO: split this function into 2 functions.
-    // Adjust the values in every bin.
-    // Non-bosses pack the cluster roots to the vector and send them to the boss.
-    adjustFinalHistogramIfSlave(bins, rootsInBin);
-    //typedef std::multimap<std::ptrdiff_t, std::ptrdiff_t>::iterator mapIter;
-    //if (BOSS != mDecompositionInfo.myRank)
-    //{
-    //    // Put the roots sequentially in the array, separate bins with the INVALID_VALUE.
-    //    std::vector<std::ptrdiff_t> roots;
-    //    int binId = 0;
-    //    while (binId < bins)
-    //    {
-    //        // Get the range that contains the roots of the specified bin.
-    //        std::pair<mapIter, mapIter> range = rootsInBin.equal_range(binId);
-
-    //        // Pack the roots into the array.
-    //        for (mapIter rangeIter = range.first; rangeIter != range.second; ++rangeIter)
-    //        {
-    //            roots.push_back( (*rangeIter).second );
-    //        }
-
-    //        // Separate the bin with the INVALID_VALUE divider.
-    //        roots.push_back(INVALID_VALUE);
-
-    //        ++binId;
-    //    }
-
-    //    // Send the packed values to the BOSS.
-    //    int numOfElements = roots.size();
-    //    MPI_Send(&numOfElements, 1, MPI_INT, BOSS, MSG_1, MPI_COMM_WORLD);
-    //    MPI_Send(&roots[0], numOfElements, MPI_INT, BOSS, MSG_1, MPI_COMM_WORLD);
-    //}
-
-    typedef std::multimap<std::ptrdiff_t, std::ptrdiff_t>::iterator mapIter;
-    if (BOSS == mDecompositionInfo.myRank)
-    {
-        // Boss receives the cluster roots, unpacks them and uses to adjust the histogram.
-        for (int procId = 1; procId < mDecompositionInfo.numOfProc; ++procId)
-        {
-            int numOfElements = 0;
-            std::vector<std::ptrdiff_t> buffer(numOfElements);
-            receiveData(buffer, numOfElements, procId);
-
-            // Process the data: eliminate those clusters from the histogram that has been counted more than once.
-            int binId = 0;
-            int index = 0;
-label:
-            while ( (index < numOfElements) && (binId < bins) )
-            {
-                // Skip all the empty bins.
-                while (INVALID_VALUE == buffer[index])
-                {
-                    ++binId;
-                    ++index;
-                    goto label; // Use goto to be sure that other loops are not affected.
-                }
-
-                // Get roots that are known to the BOSS in the current bin.
-                std::pair<mapIter, mapIter> range = rootsInBin.equal_range(binId);
-
-                // Needed to prevent looping over the newly added element (this would happen if rootsInBin was used instead).
-                std::multimap<std::ptrdiff_t, std::ptrdiff_t> bufferMap;
-
-                // Loop over the received roots in the current bin and see whether BOSS knows about them.
-                while (INVALID_VALUE != buffer[index])
-                {
-                    // If the rootsInBins bin is empty then insert a new bin.
-                    if (range.first == range.second)
-                    {
-                        bufferMap.insert(std::pair<std::ptrdiff_t, std::ptrdiff_t> (binId, buffer[index]));
-                    }
-
-                    for (mapIter rangeIter = range.first; rangeIter != range.second; ++rangeIter)
-                    {
-                        if (buffer[index] == (*rangeIter).second)
-                        {
-                            --finalHistogram[binId];
-                        }
-                        else
-                        {
-                            bufferMap.insert(std::pair<std::ptrdiff_t, std::ptrdiff_t> (binId, buffer[index]));
-                        }
-                    }
-                    ++index;
-                }
-                ++index; // Go to the 1st element of the next bin.
-                ++binId;
-
-                // Copy the elements to the original map.
-                for (mapIter iter = bufferMap.begin(); iter != bufferMap.end(); ++iter)
-                {
-                    rootsInBin.insert(std::pair<std::ptrdiff_t, std::ptrdiff_t> ( (*iter).first, (*iter).second ));
-                }
-            } // End while (index < numOfElements).
-        } // End for (int procId.
-    }
-}
-
-//---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::adjustFinalHistogramIfSlave(const int bins, std::multimap<std::ptrdiff_t, std::ptrdiff_t>& rootsInBin) const
-{
-    typedef std::multimap<std::ptrdiff_t, std::ptrdiff_t>::iterator mapIter;
-    if (BOSS != mDecompositionInfo.myRank)
-    {
-        // Put the roots sequentially in the array, separate bins with the INVALID_VALUE.
-        std::vector<std::ptrdiff_t> roots;
-        int binId = 0;
-        while (binId < bins)
-        {
-            // Get the range that contains the roots of the specified bin.
-            std::pair<mapIter, mapIter> range = rootsInBin.equal_range(binId);
-
-            // Pack the roots into the array.
-            for (mapIter rangeIter = range.first; rangeIter != range.second; ++rangeIter)
-            {
-                roots.push_back( (*rangeIter).second );
-            }
-
-            // Separate the bin with the INVALID_VALUE divider.
-            roots.push_back(INVALID_VALUE);
-
-            ++binId;
-        }
-
-        // Send the packed values to the BOSS.
-        int numOfElements = roots.size();
-        MPI_Send(&numOfElements, 1, MPI_INT, BOSS, MSG_1, MPI_COMM_WORLD);
-        MPI_Send(&roots[0], numOfElements, MPI_INT, BOSS, MSG_1, MPI_COMM_WORLD);
-    }
-}
-
-//---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::adjustFinalHistogramIfBoss(const int bins,
-                                    std::vector<double>& finalHistogram,
-                                    std::multimap<std::ptrdiff_t, std::ptrdiff_t>& rootsInBin) const
-{
-}
-
-//---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::outputSizeHistogram(const int bins,
-                                                     const double binWidth,
-                                                     const std::string& fileName,
-                                                     const std::vector<double>& finalHistogram) const
-{
-    // The final correct histogram is on the BOSS. Print it to a file.
-    if (BOSS == mDecompositionInfo.myRank)
-    {
-        std::ofstream histFile(fileName);
-
-        if (histFile.good() && (mTotalNumOfClusters > 0))
-        {
-            histFile.setf(std::ios::fixed,std::ios::floatfield); //histFile.width(10);
-            double histSum = 0.;
-            for (int i = 0; i < bins; ++i)
-            {
-                histSum += static_cast<double>(finalHistogram[i])/mTotalNumOfClusters;
-                histFile << i*binWidth + mMinClusterSize << "\t";
-                // Normalize only by the total number of islands (without delta).
-
-                // TODO: in the end normalize.
-                //histFile << static_cast<double>(finalHistogram[i])/mTotalNumOfClusters << "\t" << histSum << std::endl;
-                histFile << static_cast<double>(finalHistogram[i]) << "\t" << histSum << std::endl;
-            }
-            histFile.close();
-        }
-        else
-        {
-            std::cerr << "Error: Bad histogram file." << std::endl;
-        }
-    }
-}
-
-//---------------------------------------------------------------------------
-// TODO: introduce the version for 1 processor.
-void ParallelUnionFind2DStripes::lookForPercolation()
-{
-    lookForHorizontalPercolation();
-    lookForVerticalPercolation();
-}
-
-//---------------------------------------------------------------------------
-// TODO: introduce the version for 1 processor.
-void ParallelUnionFind2DStripes::lookForHorizontalPercolation()
-{
-    // TODO: split this function into 2 functions.
-    if (BOSS == mDecompositionInfo.myRank)
-    {
-        // BOSS loops over the leftmost stripe of pixels and gets their final roots.
-        std::set<int> leftMostVericalPixelRoots; // Use set to eliminate duplicates.
-        for (std::ptrdiff_t iy = 0u; iy < mDecompositionInfo.domainHeight; ++iy)
-        {
-            // TODO: recheck, getting final root using the globalRoot (not the pixel id) might be wrong.
-            const int finalRoot = getFinalRootOfPixel(iy);
-            if (INVALID_VALUE != finalRoot)
-            {
-                leftMostVericalPixelRoots.insert(finalRoot);
-            }
-        }
-
-        // Receive the right-most roots from the last processor.
-        int numOfReceivedRoots = 0;
-        std::vector<int> rightMostVerticalPixelRoots;
-        receiveData(rightMostVerticalPixelRoots, numOfReceivedRoots, mDecompositionInfo.numOfProc - 1);
-
-        // Loop over the received roots and see whether one of them is in the BOSS roots.
-        for (int id = 0; id < numOfReceivedRoots; ++id)
-        {
-            const int currentRoot = rightMostVerticalPixelRoots[id];
-            if ( leftMostVericalPixelRoots.find(currentRoot) != leftMostVericalPixelRoots.end() )
-            {
-                mPercolatesHorizontally = true;
-                mHorizPercolatedSize = mFinalWuf->getClusterSize(currentRoot);
-                break;
-            }
-        }
-    }
-    else if (mDecompositionInfo.numOfProc - 1 == mDecompositionInfo.myRank)
-    {
-        // The last processor loops over the rightmost pixel stripe and gets its roots.
-        std::set<int> rightMostVerticalPixelRoots;
-        const int lastStripeStart = (mDecompositionInfo.domainWidth - 1)*mDecompositionInfo.domainHeight;
-        for (std::ptrdiff_t iy = 0; iy < mDecompositionInfo.domainHeight; ++iy)
-        {
-            const int finalRoot = getFinalRootOfPixel(iy + lastStripeStart);
-            if (INVALID_VALUE != finalRoot)
-            {
-                rightMostVerticalPixelRoots.insert(finalRoot);
-            }
-        }
-
-        // Pack the roots for sending.
-        packDataAndSendIt(rightMostVerticalPixelRoots, BOSS);
-    }
-}
-
-//---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::lookForVerticalPercolation()
-{
-    // Every proc gets roots of the top-/bottom-most pixel stripe.
-    std::set<int> topmostRoots;
-    std::set<int> bottommostRoots;
-    for (int ix = 0; ix < mDecompositionInfo.domainWidth; ++ix)
-    {
-        const int topRoot = getFinalRootOfPixel(ix * mDecompositionInfo.domainHeight);
-        if (INVALID_VALUE != topRoot)
-        {
-            topmostRoots.insert(topRoot);
-        }
-
-        const int bottomRoot = getFinalRootOfPixel(mDecompositionInfo.domainHeight * (ix + 1) - 1);
-        if (INVALID_VALUE != bottomRoot)
-        {
-            bottommostRoots.insert(bottomRoot);
-        }
-    }
-
-    // Non-bosses send these data to the BOSS.
-    if (BOSS != mDecompositionInfo.myRank)
-    {
-        packDataAndSendIt(topmostRoots, BOSS);
-        packDataAndSendIt(bottommostRoots, BOSS);
-    }
-    else
-    {
-        // BOSS receives the roots.
-        for (int procId = 1; procId < mDecompositionInfo.numOfProc; ++procId)
-        {
-            // Receive and save the topmost roots.
-            int numOfReceivedRoots = 0;
-            std::vector<int> dataToReceive;
-            receiveData(dataToReceive, numOfReceivedRoots, procId);
-            // Save the data to the BOSS's set.
-            if (numOfReceivedRoots > 0)
-            {
-                std::copy( dataToReceive.begin(), dataToReceive.end(), std::inserter( topmostRoots, topmostRoots.end() ) );
-
-            }
-
-            // Receive and save the bottommost roots.
-            receiveData(dataToReceive, numOfReceivedRoots, procId);
-            if (numOfReceivedRoots > 0)
-            {
-                std::copy( dataToReceive.begin(), dataToReceive.end(), std::inserter( bottommostRoots, bottommostRoots.end() ) );
-            }
-        }
-
-        // BOSS searches for at least one coincidence of the top and bottom roots.
-        std::set<int>::iterator iter = topmostRoots.begin();
-        for (; iter != topmostRoots.end(); ++iter)
-        {
-            const int currentRoot = *iter;
-            if ( bottommostRoots.find(currentRoot) != bottommostRoots.end() )
-            {
-                mPercolatesVertically = true;
-                mVertPercolatedSize = mFinalWuf->getClusterSize(currentRoot);
-                break;
-            }
-        }
-    }
-}
-
-//---------------------------------------------------------------------------
-std::ptrdiff_t ParallelUnionFind2DStripes::getFinalRootOfPixel(const int pixelId)
-{
-    std::ptrdiff_t finalRoot = INVALID_VALUE;
-
-    const std::ptrdiff_t localRoot = mLocalWuf->getPixelRoot(pixelId);
-    if (mLocalWuf->getClusterSize(localRoot) > 0) // Look only at the pixels of interest.
-    {
-        const std::ptrdiff_t globalRoot = mGlobalLabels[localRoot];
-        finalRoot = mFinalWuf->getPixelRoot(globalRoot);
-    }
-
-    return finalRoot;
-}
-
-//---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::printPercolationInfo() const
-{
-    if (BOSS == mDecompositionInfo.myRank)
-    {
-        std::string h = " horizontal ";
-        std::string v = " vertical ";
-
-        std::string contact = " contact ";
-        if (0 == mDecompositionInfo.pixelValue)
-        {
-            contact = " non-contact ";
-        }
-
-        if (mPercolatesHorizontally)
-        {
-            printPercolationPhrase(contact, h, mHorizPercolatedSize);
-        }
-
-        if (mPercolatesVertically)
-        {
-            printPercolationPhrase(contact, v, mVertPercolatedSize);
-        }
-    }
-}
-
-//---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::printPercolationPhrase(const std::string& contact, const std::string& vh, const int size) const
-{
-    std::cout << "# There is at least one" << contact << " cluster percolating in" << vh << "direction" << std:: endl;
-    std::cout << "Cluster size is " << size << std::endl;
-}
-
-//---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::packDataAndSendIt(const std::set<int>& data, const int destinationProc) const
-{
-    std::vector<int> dataToSend;
-    int numOfRoots = 0;
-
-    std::set<int>::iterator iter = data.begin();
-    for (; iter != data.end(); ++iter)
-    {
-        dataToSend.push_back( *iter );
-        ++numOfRoots;
-    }
-
-    MPI_Send(&numOfRoots, 1, MPI_INT, destinationProc, MSG_1, MPI_COMM_WORLD);
-
-    if (numOfRoots > 0)
-    {
-        MPI_Send(&dataToSend[0], numOfRoots, MPI_INT, destinationProc, MSG_1, MPI_COMM_WORLD);
-    }
-}
-
-//---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::receiveData(std::vector<int>& data, int& numOfElements, const int sendingProc) const
-{
-    MPI_Status mpiStatus;
-    numOfElements = 0;
-    MPI_Recv(&numOfElements, 1, MPI_INT, sendingProc, MSG_1, MPI_COMM_WORLD, &mpiStatus);
-
-    if (numOfElements > 0)
-    {
-        data.resize(numOfElements);
-        MPI_Recv(&data[0], numOfElements, MPI_INT, sendingProc, MSG_1, MPI_COMM_WORLD, &mpiStatus);
     }
 }

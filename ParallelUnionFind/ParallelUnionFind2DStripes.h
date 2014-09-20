@@ -8,8 +8,6 @@
 #include "WeightedUnionFind.h"
 #include <memory>
 
-// TODO: replace all the integers that relate to the system size by ptrdiff_t (necessary for the 64-bit JUQUEEN and huge systems).
-
 //---------------------------------------------------------------------------
 class ParallelUnionFind2DStripes : public ParallelUnionFindImpl
 {
@@ -77,7 +75,12 @@ private:
     void getMinMaxClusterSizes();
     void lookForPercolation();
     void lookForHorizontalPercolation();
+    void bossLookForHorizontalPercolation();
+    void slaveLookForHorizontalPercolation();
+    void lookForHorizontalPercolation1Proc();
     void lookForVerticalPercolation();
+    void bossLookForVerticalPercolation(std::set<int>& topmostRoots, std::set<int>& bottommostRoots);
+
     std::ptrdiff_t getFinalRootOfPixel(const int pixelId);
     void printPercolationInfo() const;
     void printPercolationPhrase(const std::string& contact, const std::string& vh, const int size) const;
@@ -95,6 +98,7 @@ private:
     void receiveData(std::vector<int>& data, int& numOfElements, const int sendingProc) const;
 
     // Implementation helpers.
+    void printConsecutiveIds(const std::map<std::ptrdiff_t, std::ptrdiff_t>& consecutiveLocalIds);
     void printLocalExtendedPicture(const DecompositionInfo& info) const;
     void printReceivedGlobalLabels() const;
     void printGlobalUfRootsAfterFirstMerge() const;
