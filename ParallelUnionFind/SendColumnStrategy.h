@@ -5,6 +5,8 @@
 
 #include <vector>
 #include <map>
+#include <cstddef> // For ptrdiff_t.
+                   // ptrdiff_t is necessary for huge systems. It works even when the integer value exceeds INT_MAX = 2^32.
 
 struct Pixel;
 struct DecompositionInfo;
@@ -14,11 +16,11 @@ class WeightedUnionFind;
 // A helper data structure containing attributes of the pixel stripe sent between processors.
 struct SPixelStripe
 {
-    std::vector<int> pixelValue;
-    std::vector<int> globalClusterId;
-    std::vector<int> sizeOfCluster;
+    std::vector<std::ptrdiff_t> pixelValue;
+    std::vector<std::ptrdiff_t> globalClusterId;
+    std::vector<std::ptrdiff_t> sizeOfCluster;
 
-    explicit SPixelStripe(size_t size)
+    explicit SPixelStripe(std::ptrdiff_t size)
         : pixelValue(size)
         , globalClusterId(size)
         , sizeOfCluster(size)
@@ -33,7 +35,7 @@ public:
                        const std::vector<int> & localPixels,
                        const std::vector<Pixel> & globalPixels,
                        const std::tr1::shared_ptr<WeightedUnionFind> & localWuf,
-                       std::map<int, int> & globalLabels);
+                       std::map<std::ptrdiff_t, std::ptrdiff_t> & globalLabels);
     virtual ~SendColumnStrategy(void);
 
     void sendReceivePixelStripes(std::vector<Pixel> & globalPixels);
@@ -56,8 +58,8 @@ protected:
     const std::vector<Pixel> & mGlobalPixels;
     const std::tr1::shared_ptr<WeightedUnionFind> & mLocalWuf;
 
-    std::map<int, int> & mGlobalLabels;        // This reference is not modified, so should have been const.
-                                               // But if it is const we cannot use [] operator. So I left it non-const.
+    std::map<std::ptrdiff_t, std::ptrdiff_t> & mGlobalLabels;// This reference is not modified, so should have been const.
+                                                             // But if it is const we cannot use [] operator. So I left it non-const.
 
     enum {INVALID_VALUE = -1, BOSS = 0, NUM_OF_SENDS = 3, MSG_1 =123, MSG_2 = 456, MSG_3 = 789};
 };

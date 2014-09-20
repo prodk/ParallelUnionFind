@@ -13,9 +13,9 @@ TestParallelUnionFind::TestParallelUnionFind(int argc, char **argv)
     : mNumOfProc(-1)
     , mMyRank(-1)
     , mPixels()
-    , mNumOfBins(6)
     , mPictureFile("8by8.dat")
     , mSystemSize(8)
+    , mNumOfBins(6)
 {
     MPI_Init (&argc, &argv);
     MPI_Comm_size (MPI_COMM_WORLD, &mNumOfProc);
@@ -45,19 +45,15 @@ void TestParallelUnionFind::readInputParameters()
     std::ifstream fileIn(inputFile);
     if (fileIn.good())
     {
-        const std::string comment = "#";
-        const size_t numOfParams = 3;
+        const std::string comment = "#";   // Symbol for comments.
+        const size_t numOfParams = 3;      // Number of parameters in the input.txt
         std::string line;
         std::size_t paramCount = 0;
 
         while ((paramCount < numOfParams) && std::getline(fileIn, line))
         {
             // Look for comments.
-            std::size_t found = line.find_first_of(comment);
-            if (std::string::npos != found)
-            {
-                line.erase(found);
-            }
+            eraseComments(line, comment);
 
             // Trim the white spaces and save the parameter.
             std::string paramLine = trimString(line);

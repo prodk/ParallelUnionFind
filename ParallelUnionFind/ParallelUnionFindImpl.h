@@ -1,5 +1,6 @@
 // ParallelUnionFindImpl.h - declaration of the ParallelUnionFindImpl class 
 // which is a part of the Bridge pattern.
+
 // Using the Template Method pattern this class defines the general sceleton
 // of the parallel union-find algorithm described in:
 // C.Harrison et al. Eurographics Symposium on Parallel Graphics and Visualization, 2011.
@@ -10,6 +11,8 @@
 //---------------------------------------------------------------------------
 #include <string>
 #include <vector>
+#include <cstddef> // For ptrdiff_t.
+                   // ptrdiff_t is necessary for huge systems. It works even when the integer value exceeds INT_MAX = 2^32.
 
 //---------------------------------------------------------------------------
 class WeightedUnionFind;
@@ -22,12 +25,12 @@ struct DecompositionInfo
 
     int numOfProc;
     int myRank;
-    std::size_t domainWidth; // Width of the domain per processor, in grid points.
-    std::size_t domainHeight;// Height of the domain per processor, in grid points.
-    const int* pixels;       // A pointer to the array of grid points in 1D format.
-    int pixelValue;          // Value that is used for uniting the points.
-                             // 1 corresponds to contact, 0 to non-contact.
-    bool periodicBoundaryX;  // True if use pbc in the x direction. False by default.
+    std::ptrdiff_t domainWidth;  // Width of the domain per processor, in grid points.
+    std::ptrdiff_t domainHeight; // Height of the domain per processor, in grid points.
+    const int* pixels;           // A pointer to the array of grid points in 1D format.
+    int pixelValue;              // Value that is used for uniting the points.
+                                 // 1 corresponds to contact, 0 to non-contact.
+    bool periodicBoundaryX;      // True if use pbc in the x direction. False by default.
 };
 
 //---------------------------------------------------------------------------
@@ -37,10 +40,10 @@ struct Merge
     // We put the arrays into the structure to simplify using Merge structure in MPI
     // We do not want to bother with creating new MPI data type,
     // as it seems easier to just send arrays of MPI_INTs.
-    std::vector<int> p;                   // Root id of the 1st cluster.
-    std::vector<int> q;                   // Root id of the 2nd cluster.
-    std::vector<int> pClusterSize;        // Size of the cluster of the p root.
-    std::vector<int> qClusterSize;        // Size of the cluster of the q root.
+    std::vector<std::ptrdiff_t> p;                   // Root id of the 1st cluster.
+    std::vector<std::ptrdiff_t> q;                   // Root id of the 2nd cluster.
+    std::vector<std::ptrdiff_t> pClusterSize;        // Size of the cluster of the p root.
+    std::vector<std::ptrdiff_t> qClusterSize;        // Size of the cluster of the q root.
 };
 
 //---------------------------------------------------------------------------

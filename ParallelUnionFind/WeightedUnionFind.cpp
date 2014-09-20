@@ -7,14 +7,14 @@
 // Avoid magic numbers.
 const int WeightedUnionFind::defaultInt = -1;
 //---------------------------------------------------------------------------
-WeightedUnionFind::WeightedUnionFind(const std::size_t N)
+WeightedUnionFind::WeightedUnionFind(const std::ptrdiff_t N)
     : mRoots()
     , mConsecutiveRoots()
 {
     mId.resize(N);
     mSize.resize(N);
 
-    for (std::size_t i = 0; i < N; ++i)
+    for (std::ptrdiff_t i = 0; i < N; ++i)
     {
         mId[i] = i;      // Assign the id to the sequence number of the vertex.
         mSize[i] = 0;    // No elements in all the trees at the beginning.
@@ -30,16 +30,16 @@ WeightedUnionFind::~WeightedUnionFind(void)
 }
 
 //---------------------------------------------------------------------------
-bool WeightedUnionFind::connected(int p, int q)
+bool WeightedUnionFind::connected(std::ptrdiff_t p, std::ptrdiff_t q)
 {
     return root(p) == root(q);
 }
 
 //---------------------------------------------------------------------------
-void WeightedUnionFind::makeUnion(int p, int q)
+void WeightedUnionFind::makeUnion(std::ptrdiff_t p, std::ptrdiff_t q)
 {
-    int i = root(p);
-    int j = root(q);
+    std::ptrdiff_t i = root(p);
+    std::ptrdiff_t j = root(q);
 
     // There is no need to add either i or j to the 'roots' set because they must be there already.
     if (mSize[i] < mSize[j])   // Attach the smaller tree to the larger one.
@@ -58,7 +58,7 @@ void WeightedUnionFind::makeUnion(int p, int q)
 
 //---------------------------------------------------------------------------
 // Return the root of the tree the vertex i belongs to.
-int WeightedUnionFind::root(int i) const
+std::ptrdiff_t WeightedUnionFind::root(std::ptrdiff_t i) const
 {
     while (i != mId[i])      // i is == to id[i] only for roots.
     {
@@ -70,7 +70,7 @@ int WeightedUnionFind::root(int i) const
 
 //---------------------------------------------------------------------------
 // Set the initial root of the vertex.
-void WeightedUnionFind::setInitialRoot(int idp)
+void WeightedUnionFind::setInitialRoot(std::ptrdiff_t idp)
 {
     if (mSize[idp] <= 0)
     {
@@ -80,7 +80,7 @@ void WeightedUnionFind::setInitialRoot(int idp)
 }
 
 //---------------------------------------------------------------------------
-void WeightedUnionFind::setInitialRoot(int idp, int clusterSize)
+void WeightedUnionFind::setInitialRoot(std::ptrdiff_t idp, std::ptrdiff_t clusterSize)
 {
     if (mSize[idp] <= 0)
     {
@@ -90,12 +90,12 @@ void WeightedUnionFind::setInitialRoot(int idp, int clusterSize)
 }
 
 //---------------------------------------------------------------------------
-void WeightedUnionFind::reset(int N)
+void WeightedUnionFind::reset(std::ptrdiff_t N)
 {
     mId.resize(N);
     mSize.resize(N);
 
-    for (int i = 0; i < N; ++i)
+    for (std::ptrdiff_t i = 0; i < N; ++i)
     {
         mId[i] = i;            // Assign the id to the sequence number of the vertex.
         mSize[i] = 0;          // No elements in all the trees at the beginning.
@@ -110,13 +110,13 @@ void WeightedUnionFind::reset(int N)
 }
 
 //---------------------------------------------------------------------------
-const std::map<int, int>& WeightedUnionFind::getConsecutiveRootIds()
+const std::map<std::ptrdiff_t, std::ptrdiff_t>& WeightedUnionFind::getConsecutiveRootIds()
 {
     mConsecutiveRoots.clear();
 
-    const std::size_t numOfClusters = mRoots.size();
-    int count = 0;
-    std::set<int>::iterator iter;
+    const std::ptrdiff_t numOfClusters = mRoots.size();
+    std::ptrdiff_t count = 0;
+    std::set<std::ptrdiff_t>::iterator iter;
     for (iter = mRoots.begin(); iter != mRoots.end(); ++iter)
     {
         mConsecutiveRoots[*iter] = count; // Root id is a key, consecutive id is a value.
@@ -134,7 +134,7 @@ void WeightedUnionFind::printClusterSizes(std::ostream& out)
     if (mRoots.size() > 0)
     {
         out << "Loc  LocConsec  Size" << std::endl;
-        std::set<int>::iterator iter;
+        std::set<std::ptrdiff_t>::iterator iter;
         for (iter = mRoots.begin(); iter != mRoots.end(); ++iter)
         {
             out << *iter << " \t " << mConsecutiveRoots[*iter] << " \t " << mSize[*iter] << std::endl;
@@ -181,12 +181,12 @@ int WeightedUnionFind::printClusterSizeHistogram(const int bins, const std::stri
 
 //---------------------------------------------------------------------------
 // Define clusters with the minimum and maximum sizes.
-void WeightedUnionFind::getMinMaxClusterSize(int *min, int *max)
+void WeightedUnionFind::getMinMaxClusterSize(std::ptrdiff_t *min, std::ptrdiff_t *max)
 {
-    std::set<int>::iterator iter;
+    std::set<std::ptrdiff_t>::iterator iter;
     iter = mRoots.begin();
-    int minCluster = mSize[*iter];
-    int maxCluster = mSize[*iter];
+    std::ptrdiff_t minCluster = mSize[*iter];
+    std::ptrdiff_t maxCluster = mSize[*iter];
     for (; iter != mRoots.end(); ++iter)
     {
         if (minCluster > mSize[*iter])
@@ -203,6 +203,7 @@ void WeightedUnionFind::getMinMaxClusterSize(int *min, int *max)
     *max = maxCluster;
 }
 
+//---------------------------------------------------------------------------
 void WeightedUnionFind::buildAndPrintSizeHistogram(const int bins, const std::string &fileOut) const
 {
     // Width of the bin.
@@ -213,7 +214,7 @@ void WeightedUnionFind::buildAndPrintSizeHistogram(const int bins, const std::st
     if (delta > std::numeric_limits<double>::epsilon())  // Prevent from division by 0.
     {
         // Build the histogram.
-        std::set<int>::iterator iter;
+        std::set<std::ptrdiff_t>::iterator iter;
         for (iter = mRoots.begin(); iter != mRoots.end(); ++iter)  // Loop over the clusters.
         {
             if (mSize[*iter] > 0)
@@ -225,7 +226,7 @@ void WeightedUnionFind::buildAndPrintSizeHistogram(const int bins, const std::st
 
         // Print the histogram to the file.
         std::ofstream histFile(fileOut);
-        const int numOfRoots = static_cast<int>(mRoots.size());
+        const std::ptrdiff_t numOfRoots = static_cast<std::ptrdiff_t>(mRoots.size());
 
         if (histFile.good() && (numOfRoots > 0))
         {

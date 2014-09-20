@@ -40,6 +40,7 @@ private:
     int readPixelsInParallel(const std::string& filePictureIn, const DecompositionInfo& info);
     void copyRelevantData(const std::vector<int>& allPixels, const DecompositionInfo& info);
     int indexTo1D(int ix, int iy, const DecompositionInfo& info) const;
+    void eraseComments(std::string& line, const std::string& comment) const;
     std::string trimString(const std::string& str, const std::string& whitespace);
     void saveInteger(int &number, const std::string& text);
 
@@ -52,9 +53,9 @@ private:
     int mNumOfProc;
     int mMyRank;
     std::vector<int> mPixels;
-    int mNumOfBins;
     std::string mPictureFile;
     int mSystemSize;
+    int mNumOfBins;
 };
 
 //---------------------------------------------------------------------------
@@ -68,14 +69,14 @@ inline void TestParallelUnionFind::fillInDecompositionInfo(DecompositionInfo& in
 {
     if (mNumOfProc > 0)
     {
-        info.domainWidth = size/mNumOfProc;
+        info.domainWidth = static_cast<std::ptrdiff_t>(size/mNumOfProc);
     }
     else
     {
         std::cout << "We need at least 1 processor to perform the task!" << std::endl;
         return;
     }
-    info.domainHeight = size;
+    info.domainHeight = static_cast<std::ptrdiff_t>(size);
     info.myRank = mMyRank;
     info.numOfProc = mNumOfProc;
     info.pixels = 0;
@@ -108,6 +109,16 @@ inline void TestParallelUnionFind::saveInteger(int &number, const std::string& t
     {
         std::cerr << "Cannot convert this string " << text << " to integer" << std::endl;
         MPI_Abort(MPI_COMM_WORLD, -1);
+    }
+}
+
+//---------------------------------------------------------------------------
+inline void TestParallelUnionFind::eraseComments(std::string& line, const std::string& comment) const
+{
+    std::size_t found = line.find_first_of(comment);
+    if (std::string::npos != found)
+    {
+        line.erase(found);
     }
 }
 

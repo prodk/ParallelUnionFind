@@ -10,7 +10,7 @@ SendRightColumnStrategy::SendRightColumnStrategy(const DecompositionInfo & decom
                                                  const std::vector<int> & localPixels,
                                                  const std::vector<Pixel> & globalPixels,
                                                  const std::tr1::shared_ptr<WeightedUnionFind> & localWuf,
-                                                 std::map<int, int> & globalLabels)
+                                                 std::map<std::ptrdiff_t, std::ptrdiff_t> & globalLabels)
     : SendColumnStrategy(decompositionInfo, localPixels, globalPixels, localWuf, globalLabels)
 {
 }
@@ -23,10 +23,10 @@ SendRightColumnStrategy::~SendRightColumnStrategy(void)
 //---------------------------------------------------------------------------
 void SendRightColumnStrategy::copyPixelStripeToSend(SPixelStripe & stripeToSend) const
 {
-    const int lastStripeStart = (mDecompositionInfo.domainWidth - 1)*mDecompositionInfo.domainHeight;
-    for (std::size_t iy = 0; iy < mDecompositionInfo.domainHeight; ++iy)
+    const std::ptrdiff_t lastStripeStart = (mDecompositionInfo.domainWidth - 1)*mDecompositionInfo.domainHeight;
+    for (std::ptrdiff_t iy = 0; iy < mDecompositionInfo.domainHeight; ++iy)
     {
-        const int lastStripeId = iy + lastStripeStart;
+        const std::ptrdiff_t lastStripeId = iy + lastStripeStart;
         stripeToSend.pixelValue[iy] = mLocalPixels[lastStripeId];
 
         // Set attributes only of those pixels that have the desired value.
@@ -81,7 +81,7 @@ void SendRightColumnStrategy::saveReceivedStripe(const SPixelStripe & stripeToRe
     const int procToReceiveFrom = getLeftNeighborProcessor(); // Periodic BCs are taken into account.
     if ( isNeighborProcessorValid(procToReceiveFrom) )
     {
-        for (std::size_t iy = 0; iy < mDecompositionInfo.domainHeight; ++iy)
+        for (std::ptrdiff_t iy = 0; iy < mDecompositionInfo.domainHeight; ++iy)
         {
             globalPixels[iy].pixelValue = stripeToReceive.pixelValue[iy];
             globalPixels[iy].globalClusterId = stripeToReceive.globalClusterId[iy];
