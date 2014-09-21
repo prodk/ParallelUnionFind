@@ -1,9 +1,10 @@
 *Debug/
+ParallelUnionFind/Release
 *ipch*
-Release/
 *sdf
 *.ncb
 *.suo
 *.user
 *.pdb
 *.png
+*.exe

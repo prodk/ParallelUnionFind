@@ -1,0 +1,24 @@
+Reading    ..\test\picture_H03_2a_4k_p_0_035.dat
+__________________________
+Processor 0 of 2: PUF of type 2DStripes created. Width 2048 height 4096.
+Pixel value: 1 (CONTACT).
+
+Found clusters: 82242
+Min cluster: 1
+Max cluster: 1318
+
+There is at least one contact cluster percolating in vertical direction. Its size is 138
+
+job aborted:
+[ranks] message
+
+[0] process exited without calling finalize
+
+[1] terminated
+
+---- error analysis -----
+
+[0] on sumy
+ParallelUnionFind.exe ended prematurely and may have crashed. exit code 3
+
+---- error analysis -----

@@ -65,6 +65,7 @@ private:
 
     bool isPixelValid(const int pixel) const;
     bool isClusterIdValid(const std::ptrdiff_t pixel) const;
+    bool isBoss() const;
 
     // Stage 4 helpers.
     void getMergesFromAllProcs();
@@ -161,6 +162,24 @@ inline int ParallelUnionFind2DStripes::getNeighborNonPeriodicBC(const int index,
     return (index >= size - 1) 
            ? INVALID_VALUE
            : index + 1;
+}
+
+//---------------------------------------------------------------------------
+inline bool ParallelUnionFind2DStripes::isPixelValid(const int pixel) const
+{
+    return (pixel != INVALID_VALUE);
+}
+
+//---------------------------------------------------------------------------
+inline bool ParallelUnionFind2DStripes::isClusterIdValid(const std::ptrdiff_t pixel) const
+{
+    return (mGlobalPixels[pixel].globalClusterId > INVALID_VALUE);
+}
+
+//---------------------------------------------------------------------------
+inline bool ParallelUnionFind2DStripes::isBoss() const
+{
+    return (BOSS == mDecompositionInfo.myRank);
 }
 
 #endif // PARALLEL_UNION_FIND_2D_STRIPES

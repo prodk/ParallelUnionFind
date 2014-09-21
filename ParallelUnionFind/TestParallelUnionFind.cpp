@@ -68,8 +68,8 @@ void TestParallelUnionFind::readInputParameters()
                     saveInteger(mSystemSize, paramLine);
                     break;
                 case 2:
-                    break;    // mNumOfBins
                     saveInteger(mNumOfBins, paramLine);
+                    break;    // mNumOfBins
                 }
                 ++paramCount;
             }
@@ -79,7 +79,7 @@ void TestParallelUnionFind::readInputParameters()
     }
     else
     {
-        std::cerr << "Cannot read the input file." << std::endl;
+        std::cout << "Cannot read the input file." << std::endl;
         MPI_Abort(MPI_COMM_WORLD, -1);
     }
 }
@@ -95,9 +95,9 @@ void TestParallelUnionFind::runTests()
 }
 
 //---------------------------------------------------------------------------
-void TestParallelUnionFind::analyze(DecompositionInfo& info, const std::string& fileIn)
+void TestParallelUnionFind::analyze(DecompositionInfo& info, const std::string& pictureFilePath)
 {
-    if (readPixelsInParallel(fileIn, info) >= 0)
+    if (readPixelsInParallel(pictureFilePath, info) >= 0)
     {
         if (0 == info.myRank)
         {
@@ -116,7 +116,9 @@ void TestParallelUnionFind::analyze(DecompositionInfo& info, const std::string& 
 #endif
 
         puf.printClusterStatistics("");
-        puf.printClusterSizeHistogram(mNumOfBins, "cont" + fileIn);
+        std::string fileName;
+        getFileNameFromPath(pictureFilePath, fileName);
+        puf.printClusterSizeHistogram(mNumOfBins, "cont" + fileName);
 
         // Analyze non-contact.
         info.pixelValue = 0;
@@ -127,7 +129,7 @@ void TestParallelUnionFind::analyze(DecompositionInfo& info, const std::string& 
         ParallelUnionFind nonContPuf("2DStripes", info);
         nonContPuf.analyze();
         nonContPuf.printClusterStatistics("");
-        nonContPuf.printClusterSizeHistogram(mNumOfBins, "noncont" + fileIn);
+        nonContPuf.printClusterSizeHistogram(mNumOfBins, "noncont" + fileName);
     }
 }
 
@@ -357,6 +359,32 @@ void TestParallelUnionFind::printPartOfThePicture(const DecompositionInfo& info)
             outFile << std::endl;
         }
         outFile.close();
+    }
+}
+
+//---------------------------------------------------------------------------
+void TestParallelUnionFind::getFileNameFromPath(const std::string& filePath, std::string& fileName) const
+{
+    const std::size_t length = filePath.length();
+    std::size_t id = length - 1;
+    for (; (filePath[id] != '\\') && (filePath[id] != '/'); --id)
+    {
+        if (id <= 0)
+        {
+            break;
+        }
+    }
+
+    if (id > 0)
+    {
+        for (std::size_t index = id + 1; index < length; ++index)
+        {
+            fileName.push_back(filePath[index]);
+        }
+    }
+    else
+    {
+        fileName = filePath;
     }
 }
 

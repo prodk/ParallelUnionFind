@@ -1,0 +1,20 @@
+Reading    ..\test\picture_H08_4a_256_p_0_1.dat
+__________________________
+Processor 0 of 4: PUF of type 2DStripes created. Width 64 height 256.
+Pixel value: 1 (CONTACT).
+
+Found clusters: 11
+Min cluster: 1
+Max cluster: 1884
+
+There is at least one contact cluster percolating in vertical direction. Its size is 153
+__________________________
+Processor 0 of 4: PUF of type 2DStripes created. Width 64 height 256.
+Pixel value: 0 (NONCONTACT).
+
+Found clusters: 3
+Min cluster: 8
+Max cluster: 62128
+
+There is at least one non-contact cluster percolating in horizontal direction. Its size is 62128
+There is at least one non-contact cluster percolating in vertical direction. Its size is 62128

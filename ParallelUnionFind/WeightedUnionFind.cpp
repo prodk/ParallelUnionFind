@@ -244,11 +244,11 @@ void WeightedUnionFind::buildAndPrintSizeHistogram(const int bins, const std::st
         }
         else
         {
-            std::cerr << "Error: Bad histogram file or 0 number of clusters." << std::endl;
+            std::cout << "Error: Bad histogram file or 0 number of clusters." << std::endl;
         }
     } // End if delta > 0.
     else
     {
-        std::cerr << "Warning: Don't have enough different cluster sizes for the histogram!" << std::endl;
+        std::cout << "Warning: Don't have enough different cluster sizes for the histogram!" << std::endl;
     }
 }

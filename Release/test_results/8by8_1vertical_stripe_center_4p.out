@@ -1,0 +1,21 @@
+Reading    ..\test\8by8_1vertical_stripe_center.dat
+__________________________
+Processor 0 of 4: PUF of type 2DStripes created. Width 2 height 8.
+Pixel value: 1 (CONTACT).
+
+Found clusters: 1
+Min cluster: 32
+Max cluster: 32
+
+There is at least one contact cluster percolating in vertical direction. Its size is 32
+Warning: 1 clusters detected. No sense for the cluster size histogram.
+__________________________
+Processor 0 of 4: PUF of type 2DStripes created. Width 2 height 8.
+Pixel value: 0 (NONCONTACT).
+
+Found clusters: 2
+Min cluster: 16
+Max cluster: 16
+
+There is at least one non-contact cluster percolating in vertical direction. Its size is 16
+Warning processor 0: don't have enough different cluster sizes for the histogram!

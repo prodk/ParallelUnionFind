@@ -1,9 +1,0 @@
-# Input file for the testing client of the ParallelUnionFind code.
-..\test\8by8_contact.dat        # 1. Picture file
-8                               # 2. System size (a square geometry is assumed)
-
-#..\test\8by8_noncontact.dat    # 1. Picture file
-#8                              # 2. System size (a square geometry is assumed)
-
-6                   # 3. Number of bins in the cluster size histogram
-# TODO: add periodic boundary conditions in the horizontal direction.

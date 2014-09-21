@@ -21,7 +21,7 @@ public:
 
 private:
     void readInputParameters();
-    void analyze(DecompositionInfo& info, const std::string& fileIn);
+    void analyze(DecompositionInfo& info, const std::string& pictureFilePath);
     void testTheSystem();
     void test8();
     void test256();
@@ -44,6 +44,7 @@ private:
     std::string trimString(const std::string& str, const std::string& whitespace);
     void saveInteger(int &number, const std::string& text);
     void printPartOfThePicture(const DecompositionInfo& info) const;
+    void getFileNameFromPath(const std::string& filePath, std::string& fileName) const;
 
 #ifdef _DEBUG
     void forceWindowToStay() const;
@@ -107,7 +108,7 @@ inline void TestParallelUnionFind::saveInteger(int &number, const std::string& t
     }
     else
     {
-        std::cerr << "Cannot convert this string " << text << " to integer" << std::endl;
+        std::cout << "Cannot convert this string " << text << " to integer" << std::endl;
         MPI_Abort(MPI_COMM_WORLD, -1);
     }
 }

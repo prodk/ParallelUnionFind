@@ -29,8 +29,8 @@ ParallelUnionFind2DStripes::ParallelUnionFind2DStripes(const DecompositionInfo& 
 {
     if (mDecompositionInfo.numOfProc <= 0)
     {
-        std::cerr << "0 number of processors!" << std::endl;
-        std::cerr << "Check whether the MPI has been initialized!" << std::endl;
+        std::cout << "0 number of processors!" << std::endl;
+        std::cout << "Check whether the MPI has been initialized!" << std::endl;
     }
     else
     {
@@ -47,7 +47,7 @@ ParallelUnionFind2DStripes::~ParallelUnionFind2DStripes(void)
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::printInputInfo() const
 {
-    if (BOSS == mDecompositionInfo.myRank)
+    if (isBoss())
     {
         std::cout << "Processor " << mDecompositionInfo.myRank << " of " << mDecompositionInfo.numOfProc << ": PUF of type 2DStripes created.";
         std::cout << " Width " << mDecompositionInfo.domainWidth << " height " << mDecompositionInfo.domainHeight << "." << std::endl;
@@ -116,9 +116,9 @@ void ParallelUnionFind2DStripes::runLocalUnionFind(void)
     } // End if.
     else // We have no valid pixels.
     {
-        if (BOSS == mDecompositionInfo.myRank)
+        if (isBoss())
         {
-            std::cerr << "Error: there are no valid pixels to work with!" << std::endl;
+            std::cout << "Error: there are no valid pixels to work with!" << std::endl;
         }
         const int errorCode = 123;
         MPI_Abort(MPI_COMM_WORLD, errorCode);
@@ -401,18 +401,6 @@ void ParallelUnionFind2DStripes::recordMerge(const std::ptrdiff_t idp, const std
 }
 
 //---------------------------------------------------------------------------
-bool ParallelUnionFind2DStripes::isPixelValid(const int pixel) const
-{
-    return (pixel != INVALID_VALUE);
-}
-
-//---------------------------------------------------------------------------
-bool ParallelUnionFind2DStripes::isClusterIdValid(const std::ptrdiff_t pixel) const
-{
-    return (mGlobalPixels[pixel].globalClusterId > INVALID_VALUE);
-}
-
-//---------------------------------------------------------------------------
 // Stage 4.
 void ParallelUnionFind2DStripes::performFinalLabelingOfClusters(void)
 {
@@ -615,8 +603,12 @@ void ParallelUnionFind2DStripes::printClusterSizeHistogram(const int bins, const
         // Avoid division by 0.
         if (binWidth < std::numeric_limits<double>::epsilon())
         {
-            std::cerr << "Warning: processor " << mDecompositionInfo.myRank
-                      << " binWidth is 0! Using binWidth == 1.0 to avoid division by 0." << std::endl;
+            if (isBoss())
+            {
+                std::cout << "Warning processor " << mDecompositionInfo.myRank
+                    << ": don't have enough different cluster sizes for the histogram!" << std::endl;
+            }
+            return;
         }
 
         if (1 == mDecompositionInfo.numOfProc)
@@ -654,15 +646,15 @@ void ParallelUnionFind2DStripes::printClusterSizeHistogram(const int bins, const
     }
     else 
     {
-        if (BOSS == mDecompositionInfo.myRank)
+        if (isBoss())
         {
             if (bins <= 1)
             {
-                std::cerr << "Error: we need at least 2 bins for the cluster size histogram. The histogram has not been computed." << std::endl;
+                std::cout << "Error: we need at least 2 bins for the cluster size histogram. The histogram has not been computed." << std::endl;
             }
             else if (mTotalNumOfClusters <= 1)
             {
-                std::cerr << "Warning: " << mTotalNumOfClusters << " clusters " <<  "detected. No sense for the cluster size histogram." << std::endl;
+                std::cout << "Warning: " << mTotalNumOfClusters << " clusters " <<  "detected. No sense for the cluster size histogram." << std::endl;
             }
         }
     }
@@ -718,7 +710,7 @@ void ParallelUnionFind2DStripes::adjustFinalHistogramIfBoss(const int bins,
                                                             std::multimap<std::ptrdiff_t, std::ptrdiff_t>& rootsInBin) const
 {
     typedef std::multimap<std::ptrdiff_t, std::ptrdiff_t>::iterator mapIter;
-    if (BOSS == mDecompositionInfo.myRank)
+    if (isBoss())
     {
         // Boss receives the cluster roots, unpacks them and uses to adjust the histogram.
         for (int procId = 1; procId < mDecompositionInfo.numOfProc; ++procId)
@@ -789,7 +781,7 @@ void ParallelUnionFind2DStripes::outputSizeHistogram(const int bins,
                                                      const std::vector<double>& finalHistogram) const
 {
     // The final correct histogram is on the BOSS. Print it to a file.
-    if (BOSS == mDecompositionInfo.myRank)
+    if (isBoss())
     {
         std::ofstream histFile(fileName);
 
@@ -810,7 +802,7 @@ void ParallelUnionFind2DStripes::outputSizeHistogram(const int bins,
         }
         else
         {
-            std::cerr << "Error: Bad histogram file." << std::endl;
+            std::cout << "Error: Bad histogram file." << std::endl;
         }
     }
 }
@@ -839,7 +831,7 @@ void ParallelUnionFind2DStripes::lookForHorizontalPercolation()
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::bossLookForHorizontalPercolation()
 {
-    if (BOSS == mDecompositionInfo.myRank)
+    if (isBoss())
     {
         // BOSS loops over the leftmost stripe of pixels and gets their final roots.
         std::set<int> leftMostVericalPixelRoots; // Use set to eliminate duplicates.
@@ -1052,7 +1044,7 @@ std::ptrdiff_t ParallelUnionFind2DStripes::getLocalRootFromGloablRoot(const std:
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::printPercolationInfo() const
 {
-    if (BOSS == mDecompositionInfo.myRank)
+    if (isBoss())
     {
         std::string h = " horizontal ";
         std::string v = " vertical ";
@@ -1078,7 +1070,7 @@ void ParallelUnionFind2DStripes::printPercolationInfo() const
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::printPercolationPhrase(const std::string& contact, const std::string& vh, const int size) const
 {
-    std::cout << "# There is at least one" << contact << "cluster percolating in" << vh << "direction. Its size is " << size << std::endl;
+    std::cout << "There is at least one" << contact << "cluster percolating in" << vh << "direction. Its size is " << size << std::endl;
 }
 
 //---------------------------------------------------------------------------
@@ -1262,7 +1254,7 @@ void ParallelUnionFind2DStripes::printClusterSizes(const std::string& fileName) 
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::printClusterStatistics(const std::string& fileName) const
 {
-    if (BOSS == mDecompositionInfo.myRank)
+    if (isBoss())
     {
         std::cout << std::endl;
         std::cout << "Found clusters: " << mTotalNumOfClusters << std::endl;

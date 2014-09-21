@@ -1,0 +1,21 @@
+Reading    ..\test\8by8_contact.dat
+__________________________
+Processor 0 of 4: PUF of type 2DStripes created. Width 2 height 8.
+Pixel value: 1 (CONTACT).
+
+Found clusters: 1
+Min cluster: 64
+Max cluster: 64
+
+There is at least one contact cluster percolating in horizontal direction. Its size is 64
+There is at least one contact cluster percolating in vertical direction. Its size is 64
+Warning: 1 clusters detected. No sense for the cluster size histogram.
+__________________________
+Processor 0 of 4: PUF of type 2DStripes created. Width 2 height 8.
+Pixel value: 0 (NONCONTACT).
+
+Found clusters: 0
+Min cluster: 0
+Max cluster: 0
+
+Warning: 0 clusters detected. No sense for the cluster size histogram.
