@@ -34,9 +34,7 @@ ParallelUnionFind2DStripes::ParallelUnionFind2DStripes(const DecompositionInfo& 
     }
     else
     {
-        std::cout << "Processor " << mDecompositionInfo.myRank << " of " << mDecompositionInfo.numOfProc << ": PUF of type 2DStripes created.";
-        std::cout << " Width " << mDecompositionInfo.domainWidth << " height " << mDecompositionInfo.domainHeight << "." << std::endl;
-
+        printInputInfo();
         copyPixels();
     }
 }
@@ -44,6 +42,26 @@ ParallelUnionFind2DStripes::ParallelUnionFind2DStripes(const DecompositionInfo& 
 //---------------------------------------------------------------------------
 ParallelUnionFind2DStripes::~ParallelUnionFind2DStripes(void)
 {
+}
+
+//---------------------------------------------------------------------------
+void ParallelUnionFind2DStripes::printInputInfo() const
+{
+    if (BOSS == mDecompositionInfo.myRank)
+    {
+        std::cout << "Processor " << mDecompositionInfo.myRank << " of " << mDecompositionInfo.numOfProc << ": PUF of type 2DStripes created.";
+        std::cout << " Width " << mDecompositionInfo.domainWidth << " height " << mDecompositionInfo.domainHeight << "." << std::endl;
+        std::cout << "Pixel value: " << mDecompositionInfo.pixelValue;
+        if (mDecompositionInfo.pixelValue)
+        {
+            std::cout << " (CONTACT).";
+        }
+        else
+        {
+            std::cout << " (NONCONTACT).";
+        }
+        std::cout << std::endl;
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -177,7 +195,7 @@ void ParallelUnionFind2DStripes::mergeLabelsAcrossProcessors(void)
 
     // Copy the data from the localWuf to the array.
     // Setup the global pixels. Note: first/last columns are not empty (i.e. they don't contain garbage).
-    initializeGloblaPixels();
+    initializeGlobalPixels();
 
     copyLeftColumnAndSendToLeftNeighbor();
 
@@ -193,7 +211,7 @@ void ParallelUnionFind2DStripes::mergeLabelsAcrossProcessors(void)
 }
 
 //---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::initializeGloblaPixels(void)
+void ParallelUnionFind2DStripes::initializeGlobalPixels(void)
 {
     if (0 != mDecompositionInfo.pixels)
     {
@@ -325,7 +343,7 @@ void ParallelUnionFind2DStripes::runUfOnGlobalPixelsAndRecordGlobalMerges()
     // But now merge clusters based on the pixel values and not on the global cluster's ids.
     // Record the merges that occur.
     const int numOfExtendedPixels = mDecompositionInfo.domainHeight * (mDecompositionInfo.domainWidth + 2);
-    mGlobalWuf->reset(numOfExtendedPixels);                // Clear the UF. Necessary if we reuse the same UF.
+    mGlobalWuf->reset(numOfExtendedPixels);        // Clear the UF. Necessary if we reuse the same UF.
 
     const int nx = mDecompositionInfo.domainWidth + 2;
     const int ny = mDecompositionInfo.domainHeight;
@@ -334,7 +352,6 @@ void ParallelUnionFind2DStripes::runUfOnGlobalPixelsAndRecordGlobalMerges()
     {
         for (int iy = 0; iy < ny; ++iy)
         {
-            // TODO: recheck this logic because still the same merges are recorded several times.
             // Act only if the cluster id is valid.
             int idp = indexTo1D(ix, iy);           // Convert 2D pixel coordinates into 1D index.
             if (mDecompositionInfo.pixelValue == mGlobalPixels[idp].pixelValue)
@@ -531,48 +548,55 @@ void ParallelUnionFind2DStripes::getMinMaxClusterSizes()
     const std::map<int, int>& consecutiveFinalIds = mFinalWuf->getConsecutiveRootIds();
     mTotalNumOfClusters = consecutiveFinalIds.size();
 
-    // Loop over all the (local) roots residing on the current proc.
-    const std::map<int, int>& consecutiveLocalIds = mLocalWuf->getConsecutiveRootIds();
-    std::map<int, int>::const_iterator iter = consecutiveLocalIds.begin();
-
-    // Important: use the final UF for initialization.
-    int minClusterSize = mDecompositionInfo.domainHeight * mDecompositionInfo.domainWidth;
-    int maxClusterSize = INVALID_VALUE;
-
-    for (; iter != consecutiveLocalIds.end(); ++iter)
+    if (mTotalNumOfClusters <= 0)
     {
-        const int localRoot = iter->first;
-        const int globalRoot = mGlobalLabels[iter->first];
-        // Map the global root id to the final id. For local clusters finalRoot == globalRoot.
+        mMinClusterSize = mMaxClusterSize = 0;
+    }
+    else
+    {
+        // Loop over all the (local) roots residing on the current proc.
+        const std::map<int, int>& consecutiveLocalIds = mLocalWuf->getConsecutiveRootIds();
+        std::map<int, int>::const_iterator iter = consecutiveLocalIds.begin();
 
-        // Getting the final root using the global root (and not the pixel id as the function assumes)
-        // is correct in this case, because mFinalWuf is formed based on the root ids and not pixel ids.
-        const int finalRoot = mFinalWuf->getPixelRoot(globalRoot);
+        // Important: use the final UF for initialization.
+        int minClusterSize = mDecompositionInfo.domainHeight * mDecompositionInfo.domainWidth * mDecompositionInfo.numOfProc;
+        int maxClusterSize = INVALID_VALUE;
 
-        // Assume at first the cluster spans several procs, hence, use mFinalWuf and final cluster size.
-        int clusterSize = mFinalWuf->getClusterSize(finalRoot);
-
-        // If cluster size is 0 then it is a (global label of a) local cluster, hence use the local cluster size.
-        if (clusterSize <=0)
+        for (; iter != consecutiveLocalIds.end(); ++iter)
         {
-            clusterSize = mLocalWuf->getClusterSize(localRoot);
-        }
+            const int localRoot = iter->first;
+            const int globalRoot = mGlobalLabels[iter->first];
+            // Map the global root id to the final id. For local clusters finalRoot == globalRoot.
 
-        minClusterSize = std::min(clusterSize, minClusterSize);
-        maxClusterSize = std::max(clusterSize, maxClusterSize);
+            // Getting the final root using the global root (and not the pixel id as the function assumes)
+            // is correct in this case, because mFinalWuf is formed based on the root ids and not pixel ids.
+            const int finalRoot = mFinalWuf->getPixelRoot(globalRoot);
 
-        // Save the cluster size and its final root (will be used for the size histogram).
-        // Important: finalRoot should be the key as it is unique, clusterSize can have the same value for different clusters.
-        mClusterSizes.insert( std::pair<int, int>(finalRoot, clusterSize) );
-    } // end for root
+            // Assume at first the cluster spans several procs, hence, use mFinalWuf and final cluster size.
+            int clusterSize = mFinalWuf->getClusterSize(finalRoot);
 
-    // Get the final min/max values.
-    MPI_Reduce(&minClusterSize, &mMinClusterSize, 1, MPI_INT, MPI_MIN, BOSS, MPI_COMM_WORLD);
-    MPI_Reduce(&maxClusterSize, &mMaxClusterSize, 1, MPI_INT, MPI_MAX, BOSS, MPI_COMM_WORLD);
+            // If cluster size is 0 then it is a (global label of a) local cluster, hence use the local cluster size.
+            if (clusterSize <=0)
+            {
+                clusterSize = mLocalWuf->getClusterSize(localRoot);
+            }
 
-    // Broadcast the values to others for calculating the cluster size histogram.
-    MPI_Bcast(&mMinClusterSize, 1, MPI_INT, BOSS, MPI_COMM_WORLD);
-    MPI_Bcast(&mMaxClusterSize, 1, MPI_INT, BOSS, MPI_COMM_WORLD);
+            minClusterSize = std::min(clusterSize, minClusterSize);
+            maxClusterSize = std::max(clusterSize, maxClusterSize);
+
+            // Save the cluster size and its final root (will be used for the size histogram).
+            // Important: finalRoot should be the key as it is unique, clusterSize can have the same value for different clusters.
+            mClusterSizes.insert( std::pair<int, int>(finalRoot, clusterSize) );
+        } // end for root
+
+        // Get the final min/max values.
+        MPI_Reduce(&minClusterSize, &mMinClusterSize, 1, MPI_INT, MPI_MIN, BOSS, MPI_COMM_WORLD);
+        MPI_Reduce(&maxClusterSize, &mMaxClusterSize, 1, MPI_INT, MPI_MAX, BOSS, MPI_COMM_WORLD);
+
+        // Broadcast the values to others for calculating the cluster size histogram.
+        MPI_Bcast(&mMinClusterSize, 1, MPI_INT, BOSS, MPI_COMM_WORLD);
+        MPI_Bcast(&mMaxClusterSize, 1, MPI_INT, BOSS, MPI_COMM_WORLD);
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -584,14 +608,14 @@ void ParallelUnionFind2DStripes::setPixelValue(const int value)
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::printClusterSizeHistogram(const int bins, const std::string& fileName) const
 {
-    if (bins > 1)
+    if ((bins > 1) && (mTotalNumOfClusters > 1))
     {
         const double binWidth = static_cast<double>(mMaxClusterSize - mMinClusterSize)/static_cast<double>(bins - 1);
 
         // Avoid division by 0.
         if (binWidth < std::numeric_limits<double>::epsilon())
         {
-            std::cerr << " Warning: processor " << mDecompositionInfo.myRank
+            std::cerr << "Warning: processor " << mDecompositionInfo.myRank
                       << " binWidth is 0! Using binWidth == 1.0 to avoid division by 0." << std::endl;
         }
 
@@ -609,8 +633,11 @@ void ParallelUnionFind2DStripes::printClusterSizeHistogram(const int bins, const
             for (iter = mClusterSizes.begin(); iter != mClusterSizes.end(); ++iter)
             {
                 int iChannel = static_cast<int>( ( (*iter).second - mMinClusterSize)*1./binWidth + 0.5 );
-                rootsInBin.insert( std::pair<int, int>(iChannel, (*iter).first) );
-                ++localHistogram[iChannel];
+                if ( (iChannel >= 0) && (iChannel < bins) )
+                {
+                    rootsInBin.insert( std::pair<int, int>(iChannel, (*iter).first) );
+                    ++localHistogram[iChannel];
+                }
             }
 
             // Calculate the incorrect global histogram.
@@ -629,7 +656,14 @@ void ParallelUnionFind2DStripes::printClusterSizeHistogram(const int bins, const
     {
         if (BOSS == mDecompositionInfo.myRank)
         {
-            std::cerr << "Error: we need at least 2 bins for the cluster size histogram. The histogram has not been computed." << std::endl;
+            if (bins <= 1)
+            {
+                std::cerr << "Error: we need at least 2 bins for the cluster size histogram. The histogram has not been computed." << std::endl;
+            }
+            else if (mTotalNumOfClusters <= 1)
+            {
+                std::cerr << "Warning: " << mTotalNumOfClusters << " clusters " <<  "detected. No sense for the cluster size histogram." << std::endl;
+            }
         }
     }
 }
@@ -831,11 +865,8 @@ void ParallelUnionFind2DStripes::bossLookForHorizontalPercolation()
             {
                 mPercolatesHorizontally = true;
                 mHorizPercolatedSize = mFinalWuf->getClusterSize(currentRoot);
-                // TODO: Check cluster size for <= 0. If it is, then it is a local root, so use its local size.
-                /*if (mHorizPercolatedSize <= 0)
-                {
-                mHorizPercolatedSize
-                }*/
+                // For harizontal percolation and several procs cluster cannot be local. It must span several procs.
+                // So no need for checking.
                 break;
             }
         }
@@ -898,12 +929,8 @@ void ParallelUnionFind2DStripes::lookForHorizontalPercolation1Proc()
         if ( leftMostVericalPixelRoots.find(currentRoot) != leftMostVericalPixelRoots.end() )
         {
             mPercolatesHorizontally = true;
-            mHorizPercolatedSize = mFinalWuf->getClusterSize(currentRoot);
-            // TODO: Check cluster size for <= 0. If it is, then it is a local root, so use its local size.
-            /*if (mHorizPercolatedSize <= 0)
-            {
-                mHorizPercolatedSize
-            }*/
+            const std::ptrdiff_t localRoot = getLocalRootFromGloablRoot(currentRoot);
+            mHorizPercolatedSize = mLocalWuf->getClusterSize(localRoot);
             break;
         }
     }
@@ -976,11 +1003,12 @@ void ParallelUnionFind2DStripes::bossLookForVerticalPercolation(std::set<int>& t
         {
             mPercolatesVertically = true;
             mVertPercolatedSize = mFinalWuf->getClusterSize(currentRoot);
-            // TODO: Check cluster size for <= 0. If it is, then it is a local root, so use its local size.
-            /*if (mVertPercolatedSize <= 0)
+            // If cluster size is <=0 then it is a local root, so use its local size.
+            if (mVertPercolatedSize <= 0)
             {
-                mVertPercolatedSize
-            }*/
+                const std::ptrdiff_t localRoot = getLocalRootFromGloablRoot(currentRoot);
+                mVertPercolatedSize = mLocalWuf->getClusterSize(localRoot);
+            }
             break;
         }
     }
@@ -1001,6 +1029,24 @@ std::ptrdiff_t ParallelUnionFind2DStripes::getFinalRootOfPixel(const int pixelId
     }
 
     return finalRoot;
+}
+
+//---------------------------------------------------------------------------
+std::ptrdiff_t ParallelUnionFind2DStripes::getLocalRootFromGloablRoot(const std::ptrdiff_t globalRoot) const
+{
+    std::ptrdiff_t localRoot = INVALID_VALUE;
+
+    // mGlobalLabels key is the local root. Search for the value and return the key.
+    std::map<std::ptrdiff_t, std::ptrdiff_t>::const_iterator iter;
+    for (iter = mGlobalLabels.begin(); iter != mGlobalLabels.end(); ++iter)
+    {
+        if (iter->second == globalRoot)
+        {
+            localRoot = iter->first;
+            break;
+        }
+    }
+    return localRoot;
 }
 
 //---------------------------------------------------------------------------
@@ -1032,8 +1078,7 @@ void ParallelUnionFind2DStripes::printPercolationInfo() const
 //---------------------------------------------------------------------------
 void ParallelUnionFind2DStripes::printPercolationPhrase(const std::string& contact, const std::string& vh, const int size) const
 {
-    std::cout << "# There is at least one" << contact << " cluster percolating in" << vh << "direction" << std:: endl;
-    std::cout << "Cluster size is " << size << std::endl;
+    std::cout << "# There is at least one" << contact << "cluster percolating in" << vh << "direction. Its size is " << size << std::endl;
 }
 
 //---------------------------------------------------------------------------
@@ -1219,10 +1264,11 @@ void ParallelUnionFind2DStripes::printClusterStatistics(const std::string& fileN
 {
     if (BOSS == mDecompositionInfo.myRank)
     {
-        std::cout << "Processor " << mDecompositionInfo.myRank << " report:" << std::endl;
+        std::cout << std::endl;
         std::cout << "Found clusters: " << mTotalNumOfClusters << std::endl;
         std::cout << "Min cluster: " << mMinClusterSize << std::endl;
         std::cout << "Max cluster: " << mMaxClusterSize << std::endl;
+        std::cout << std::endl;
 
         printPercolationInfo();
     }

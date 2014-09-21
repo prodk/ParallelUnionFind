@@ -36,6 +36,7 @@ private:
     void performFinalLabelingOfClusters(void);
 
 private:
+    void printInputInfo() const;
     void copyPixels();
     inline std::ptrdiff_t indexTo1D(int ix, int iy) const;
     inline void mergePixels(std::ptrdiff_t idq, std::ptrdiff_t idp, std::tr1::shared_ptr<WeightedUnionFind> wuf,
@@ -50,7 +51,7 @@ private:
     void sendTotalClustersToNextProcs(const std::ptrdiff_t numOfClustersOnSmallerProcIds, const std::ptrdiff_t numOfMyClusters) const;
 
     // Stage 3 helpers.
-    void initializeGloblaPixels(void);
+    void initializeGlobalPixels(void);
     void copyLeftColumnAndSendToLeftNeighbor(void);
     void copyRightColumnAndSendToRightNeighbor(void);
     void runUfOnGlobalLabels();
@@ -82,6 +83,7 @@ private:
     void bossLookForVerticalPercolation(std::set<int>& topmostRoots, std::set<int>& bottommostRoots);
 
     std::ptrdiff_t getFinalRootOfPixel(const int pixelId);
+    std::ptrdiff_t getLocalRootFromGloablRoot(const std::ptrdiff_t globalRoot) const;
     void printPercolationInfo() const;
     void printPercolationPhrase(const std::string& contact, const std::string& vh, const int size) const;
 

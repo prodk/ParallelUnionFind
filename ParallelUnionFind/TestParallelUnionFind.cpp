@@ -99,6 +99,10 @@ void TestParallelUnionFind::analyze(DecompositionInfo& info, const std::string& 
 {
     if (readPixelsInParallel(fileIn, info) >= 0)
     {
+        if (0 == info.myRank)
+        {
+            std::cout << "__________________________" << std::endl;
+        }
         // Specify pixels just read from the file.
         info.pixels = &mPixels[0];
         ParallelUnionFind puf("2DStripes", info);
@@ -115,13 +119,15 @@ void TestParallelUnionFind::analyze(DecompositionInfo& info, const std::string& 
         puf.printClusterSizeHistogram(mNumOfBins, "cont" + fileIn);
 
         // Analyze non-contact.
-        /*std::cout << std::endl;
-        const int pixelvalue = 0;
-        puf.setPixelValue(pixelvalue);
-        puf.analyze();
-        puf.printPerProcessorClusterStatistics("");
-        puf.printPerProcessorClusterSizes("");*/
-        //puf.printPerProcessorClusterSizeHistogram(mNumOfBins, "ncont"+fileIn);
+        info.pixelValue = 0;
+        if (0 == info.myRank)
+        {
+            std::cout << "__________________________" << std::endl;
+        }
+        ParallelUnionFind nonContPuf("2DStripes", info);
+        nonContPuf.analyze();
+        nonContPuf.printClusterStatistics("");
+        nonContPuf.printClusterSizeHistogram(mNumOfBins, "noncont" + fileIn);
     }
 }
 
@@ -238,15 +244,17 @@ int TestParallelUnionFind::readPixels(std::vector<int>& pixels,
                                       const std::string& filePictureIn,
                                       const DecompositionInfo& info)
 {
-    std::cout << "________________" << std::endl;
-    std::cout << "Reading    " << filePictureIn << std::endl;
+    if (0 == mMyRank)
+    {
+        std::cout << "Reading    " << filePictureIn << std::endl;
+    }
 
     std::ifstream fileIn(filePictureIn);
     if (fileIn.good())
     {
         // Read pixels from the file.
         std::string line;
-        std::size_t lineCount = 0;
+        std::ptrdiff_t lineCount = 0;
         while (std::getline(fileIn, line))
         {
             if (lineCount >= mNumOfProc*info.domainWidth)
@@ -302,8 +310,10 @@ int TestParallelUnionFind::readPixelsInParallel(const std::string& filePictureIn
 
     copyRelevantData(allPixels, info);
 
+#ifdef _DEBUG
     // Print the part of the picture residing on the current processor.
     printPartOfThePicture(info);
+#endif
 
     return 0;
 }
@@ -323,17 +333,6 @@ void TestParallelUnionFind::copyRelevantData(const std::vector<int>& allPixels, 
             int localIndex = indexTo1D(ix, iy, info);
             mPixels[localIndex] = allPixels[globalIndex];
         }
-    }
-}
-
-//---------------------------------------------------------------------------
-#ifdef _DEBUG
-void TestParallelUnionFind::forceWindowToStay() const
-{
-    if (0 == mMyRank)
-    {
-        int dummy;
-        std::cin >> dummy;
     }
 }
 
@@ -358,6 +357,17 @@ void TestParallelUnionFind::printPartOfThePicture(const DecompositionInfo& info)
             outFile << std::endl;
         }
         outFile.close();
+    }
+}
+
+//---------------------------------------------------------------------------
+#ifdef _DEBUG
+void TestParallelUnionFind::forceWindowToStay() const
+{
+    if (0 == mMyRank)
+    {
+        int dummy;
+        std::cin >> dummy;
     }
 }
 #endif

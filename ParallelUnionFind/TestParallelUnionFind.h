@@ -43,10 +43,10 @@ private:
     void eraseComments(std::string& line, const std::string& comment) const;
     std::string trimString(const std::string& str, const std::string& whitespace);
     void saveInteger(int &number, const std::string& text);
+    void printPartOfThePicture(const DecompositionInfo& info) const;
 
 #ifdef _DEBUG
     void forceWindowToStay() const;
-    void printPartOfThePicture(const DecompositionInfo& info) const;
 #endif
 
 private:
