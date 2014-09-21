@@ -1,7 +1,5 @@
 // WeightedUnionFind.cpp - WeightedUnionFind class implementation.
 #include "WeightedUnionFind.h"
-#include <iostream>
-#include <fstream>
 
 //---------------------------------------------------------------------------
 // Avoid magic numbers.
@@ -225,7 +223,7 @@ void WeightedUnionFind::buildAndPrintSizeHistogram(const int bins, const std::st
         }
 
         // Print the histogram to the file.
-        std::ofstream histFile(fileOut);
+        std::ofstream histFile(fileOut.c_str());
         const std::ptrdiff_t numOfRoots = static_cast<std::ptrdiff_t>(mRoots.size());
 
         if (histFile.good() && (numOfRoots > 0))

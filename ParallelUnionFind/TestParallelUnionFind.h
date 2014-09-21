@@ -8,7 +8,8 @@
 #include "ParallelUnionFindImpl.h"
 #include <vector>
 #include <iostream>
-#include <ctype.h>
+//#include <ctype.h>  // atoi Microsoft compiler
+#include <cstdlib>    // atoi for gcc
 #include <mpi.h>
 
 //---------------------------------------------------------------------------

@@ -8,6 +8,11 @@
 #include <cstddef> // For ptrdiff_t.
                    // ptrdiff_t is necessary for huge systems. It works even when the integer value exceeds INT_MAX = 2^32.
                    // This might happen for the 64-bit JUQUEEN and huge systems.
+#ifndef _WIN32
+#include <tr1/memory>  // tr1::shared_ptr for gcc
+#else
+#include <memory>                  // For shared_ptr
+#endif
 
 struct Pixel;
 struct DecompositionInfo;
@@ -33,7 +38,7 @@ class SendColumnStrategy
 {
 public:
     SendColumnStrategy(const DecompositionInfo & decompositionInfo,
-                       const std::vector<int> & localPixels,
+                       const std::vector<std::ptrdiff_t> & localPixels,
                        const std::vector<Pixel> & globalPixels,
                        const std::tr1::shared_ptr<WeightedUnionFind> & localWuf,
                        std::map<std::ptrdiff_t, std::ptrdiff_t> & globalLabels);
@@ -55,7 +60,7 @@ protected:
 
 protected:
     const DecompositionInfo & mDecompositionInfo;
-    const std::vector<int> & mLocalPixels;
+    const std::vector<std::ptrdiff_t> & mLocalPixels;
     const std::vector<Pixel> & mGlobalPixels;
     const std::tr1::shared_ptr<WeightedUnionFind> & mLocalWuf;
 

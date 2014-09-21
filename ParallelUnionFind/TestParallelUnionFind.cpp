@@ -39,10 +39,10 @@ void TestParallelUnionFind::readInputParameters()
     // But we assume that this test client will not run on many processors.
 
     // We assume a file 'input.txt' that contains the picture file path, system size (square), number of bins, BCs.
-    const std::string inputFile = "input.txt";
+    std::string inputFile = "input.txt";
 
     // Read and parse the file.
-    std::ifstream fileIn(inputFile);
+    std::ifstream fileIn(inputFile.c_str());
     if (fileIn.good())
     {
         const std::string comment = "#";   // Symbol for comments.
@@ -63,12 +63,15 @@ void TestParallelUnionFind::readInputParameters()
                 {
                 case 0:       // mPictureFile
                     mPictureFile = paramLine;
+                    std::cout << "Picture file " << mPictureFile << std::endl; // TODO: remove from release
                     break;
                 case 1:       // mSystemSize
                     saveInteger(mSystemSize, paramLine);
+                    std::cout << "System size " << mSystemSize << std::endl;   // TODO: remove from release
                     break;
                 case 2:
                     saveInteger(mNumOfBins, paramLine);
+                    std::cout << "Bins " << mNumOfBins << std::endl;           // TODO: remove from release
                     break;    // mNumOfBins
                 }
                 ++paramCount;
@@ -89,7 +92,7 @@ void TestParallelUnionFind::runTests()
 {
     testTheSystem();
     // We can call here the built-in methods such as test8() etc.
-#ifdef _DEBUG
+#if defined(_DEBUG) && defined(_WIN32)
     forceWindowToStay();
 #endif
 }
@@ -251,7 +254,7 @@ int TestParallelUnionFind::readPixels(std::vector<int>& pixels,
         std::cout << "Reading    " << filePictureIn << std::endl;
     }
 
-    std::ifstream fileIn(filePictureIn);
+    std::ifstream fileIn(filePictureIn.c_str());
     if (fileIn.good())
     {
         // Read pixels from the file.
@@ -343,7 +346,7 @@ void TestParallelUnionFind::printPartOfThePicture(const DecompositionInfo& info)
 {
     std::stringstream fileName;
     fileName << "proc_" << mMyRank << "_picture.dat";
-    std::ofstream outFile(fileName.str());
+    std::ofstream outFile(fileName.str().c_str());
 
     if (outFile.good())
     {

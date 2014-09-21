@@ -457,11 +457,11 @@ void ParallelUnionFind2DStripes::getMergesFromAllProcs()
 }
 
 //---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::broadcastMergeAndAddToAllMerges(const std::vector<int> & arrayToSend,
-                                                                 std::vector<int> & arrayToReceive,
+void ParallelUnionFind2DStripes::broadcastMergeAndAddToAllMerges(const std::vector<std::ptrdiff_t> & arrayToSend,
+                                                                 std::vector<std::ptrdiff_t> & arrayToReceive,
                                                                  int numOfMerges, int root)
 {
-    std::vector<int> buffer(numOfMerges); // Allocate a buffer where we put the received data.
+    std::vector<std::ptrdiff_t> buffer(numOfMerges); // Allocate a buffer where we put the received data.
 
     // Pack the data if we are sending it, otherwise set the buffer to 0s.
     if (mDecompositionInfo.myRank == root)
@@ -474,7 +474,7 @@ void ParallelUnionFind2DStripes::broadcastMergeAndAddToAllMerges(const std::vect
     }
 
     MPI_Bcast(&buffer[0], numOfMerges, MPI_INT, root, MPI_COMM_WORLD);
-    Common::addOneVectorToAnother<int>(arrayToReceive, buffer);
+    Common::addOneVectorToAnother<std::ptrdiff_t>(arrayToReceive, buffer);
 }
 
 //---------------------------------------------------------------------------
@@ -533,7 +533,7 @@ void ParallelUnionFind2DStripes::getMinMaxClusterSizes()
 {
     // Define total number of clusters.
     // Map: first - nonconsecutive final label; second - consecutive final label.
-    const std::map<int, int>& consecutiveFinalIds = mFinalWuf->getConsecutiveRootIds();
+    const std::map<std::ptrdiff_t, std::ptrdiff_t>& consecutiveFinalIds = mFinalWuf->getConsecutiveRootIds();
     mTotalNumOfClusters = consecutiveFinalIds.size();
 
     if (mTotalNumOfClusters <= 0)
@@ -543,8 +543,8 @@ void ParallelUnionFind2DStripes::getMinMaxClusterSizes()
     else
     {
         // Loop over all the (local) roots residing on the current proc.
-        const std::map<int, int>& consecutiveLocalIds = mLocalWuf->getConsecutiveRootIds();
-        std::map<int, int>::const_iterator iter = consecutiveLocalIds.begin();
+        const std::map<std::ptrdiff_t, std::ptrdiff_t>& consecutiveLocalIds = mLocalWuf->getConsecutiveRootIds();
+        std::map<std::ptrdiff_t, std::ptrdiff_t>::const_iterator iter = consecutiveLocalIds.begin();
 
         // Important: use the final UF for initialization.
         int minClusterSize = mDecompositionInfo.domainHeight * mDecompositionInfo.domainWidth * mDecompositionInfo.numOfProc;
@@ -619,9 +619,9 @@ void ParallelUnionFind2DStripes::printClusterSizeHistogram(const int bins, const
         {
             // Calculate local size histogram for the current processor. Save the corresponding cluster root.
             std::vector<double> localHistogram(bins);
-            std::multimap<int, int> rootsInBin; // Bin id is a key (duplicates are assumed), cluster root is value.
+            std::multimap<std::ptrdiff_t, std::ptrdiff_t> rootsInBin; // Bin id is a key (duplicates are assumed), cluster root is value.
 
-            std::map<int, int>::const_iterator iter;
+            std::map<std::ptrdiff_t, std::ptrdiff_t>::const_iterator iter;
             for (iter = mClusterSizes.begin(); iter != mClusterSizes.end(); ++iter)
             {
                 int iChannel = static_cast<int>( ( (*iter).second - mMinClusterSize)*1./binWidth + 0.5 );
@@ -783,7 +783,7 @@ void ParallelUnionFind2DStripes::outputSizeHistogram(const int bins,
     // The final correct histogram is on the BOSS. Print it to a file.
     if (isBoss())
     {
-        std::ofstream histFile(fileName);
+        std::ofstream histFile(fileName.c_str());
 
         if (histFile.good() && (mTotalNumOfClusters > 0))
         {
@@ -846,7 +846,7 @@ void ParallelUnionFind2DStripes::bossLookForHorizontalPercolation()
 
         // Receive the right-most roots from the last processor.
         int numOfReceivedRoots = 0;
-        std::vector<int> rightMostVerticalPixelRoots;
+        std::vector<std::ptrdiff_t> rightMostVerticalPixelRoots;
         receiveData(rightMostVerticalPixelRoots, numOfReceivedRoots, mDecompositionInfo.numOfProc - 1);
 
         // Loop over the received roots and see whether one of them is in the BOSS roots.
@@ -970,7 +970,7 @@ void ParallelUnionFind2DStripes::bossLookForVerticalPercolation(std::set<int>& t
     {
         // Receive and save the topmost roots.
         int numOfReceivedRoots = 0;
-        std::vector<int> dataToReceive;
+        std::vector<std::ptrdiff_t> dataToReceive;
         receiveData(dataToReceive, numOfReceivedRoots, procId);
         // Save the data to the BOSS's set.
         if (numOfReceivedRoots > 0)
@@ -1095,7 +1095,7 @@ void ParallelUnionFind2DStripes::packDataAndSendIt(const std::set<int>& data, co
 }
 
 //---------------------------------------------------------------------------
-void ParallelUnionFind2DStripes::receiveData(std::vector<int>& data, int& numOfElements, const int sendingProc) const
+void ParallelUnionFind2DStripes::receiveData(std::vector<std::ptrdiff_t>& data, int& numOfElements, const int sendingProc) const
 {
     MPI_Status mpiStatus;
     numOfElements = 0;
@@ -1112,7 +1112,7 @@ void ParallelUnionFind2DStripes::receiveData(std::vector<int>& data, int& numOfE
 void ParallelUnionFind2DStripes::printConsecutiveIds(const std::map<std::ptrdiff_t, std::ptrdiff_t>& consecutiveLocalIds)
 {
     std::cout << "Loc  LocConsec GlobalConsec" << std::endl;
-    std::map<int, int>::const_iterator iter;
+    std::map<std::ptrdiff_t, std::ptrdiff_t>::const_iterator iter;
     for (iter = consecutiveLocalIds.begin(); iter != consecutiveLocalIds.end(); ++iter)
     {
         std::cout << iter->first << "\t" << iter->second << "\t" << mGlobalLabels[iter->first] << std::endl;
@@ -1124,7 +1124,7 @@ void ParallelUnionFind2DStripes::printPerProcessorClusterSizes(const std::string
 {
     if ((fileName.length() > 0) && ("" != fileName))
     {
-        std::fstream fileStream(fileName);
+        std::fstream fileStream(fileName.c_str());
         if (fileStream.good())
         {
             mLocalWuf->printClusterSizes(fileStream);
@@ -1142,7 +1142,7 @@ void ParallelUnionFind2DStripes::printPerProcessorClusterStatistics(const std::s
 {
     if ((fileName.length() > 0) && ("" != fileName))
     {
-        std::fstream fileStream(fileName);
+        std::fstream fileStream(fileName.c_str());
         if (fileStream.good())
         {
             fileStream << "Pixel value used: " << mDecompositionInfo.pixelValue << std::endl;
@@ -1168,7 +1168,7 @@ void ParallelUnionFind2DStripes::printLocalExtendedPicture(const DecompositionIn
 {
     std::stringstream fileName;
     fileName << "proc_" << info.myRank << "_mGLobal_picture.dat";
-    std::ofstream outFile(fileName.str());
+    std::ofstream outFile(fileName.str().c_str());
 
     if (outFile.good())
     {
@@ -1192,7 +1192,7 @@ void ParallelUnionFind2DStripes::printReceivedGlobalLabels() const
 {
     std::stringstream fileName;
     fileName << "proc_" << mDecompositionInfo.myRank << "_mGLobal_labels.dat";
-    std::ofstream outFile(fileName.str());
+    std::ofstream outFile(fileName.str().c_str());
 
     if (outFile.good())
     {
@@ -1216,7 +1216,7 @@ void ParallelUnionFind2DStripes::printGlobalUfRootsAfterFirstMerge() const
 {
     std::stringstream fileName;
     fileName << "proc_" << mDecompositionInfo.myRank << "_globalUf_roots.dat";
-    std::ofstream outFile(fileName.str());
+    std::ofstream outFile(fileName.str().c_str());
 
     if (outFile.good())
     {

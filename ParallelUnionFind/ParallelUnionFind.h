@@ -5,7 +5,12 @@
 
 //---------------------------------------------------------------------------
 #include "ParallelUnionFindImpl.h"
+
+#ifndef _WIN32
+#include <tr1/memory>  // tr1::shared_ptr for gcc
+#else
 #include <memory>                  // For shared_ptr
+#endif
 
 //---------------------------------------------------------------------------
 class ParallelUnionFind

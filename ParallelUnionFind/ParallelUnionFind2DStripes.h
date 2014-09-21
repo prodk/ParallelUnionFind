@@ -8,6 +8,10 @@
 #include "WeightedUnionFind.h"
 #include <memory>
 
+#ifndef _WIN32
+#include <tr1/memory>  // tr1::shared_ptr for gcc
+#endif
+
 //---------------------------------------------------------------------------
 class ParallelUnionFind2DStripes : public ParallelUnionFindImpl
 {
@@ -69,7 +73,7 @@ private:
 
     // Stage 4 helpers.
     void getMergesFromAllProcs();
-    void broadcastMergeAndAddToAllMerges(const std::vector<int> & arrayToSend, std::vector<int> & arrayToReceive,int numOfMerges, int root);
+    void broadcastMergeAndAddToAllMerges(const std::vector<std::ptrdiff_t> & arrayToSend, std::vector<std::ptrdiff_t> & arrayToReceive,int numOfMerges, int root);
     int calculateNumberOfGlobalLabels() const;
     void getUniqueLabelForEachComponent();
 
@@ -98,7 +102,7 @@ private:
     void outputSizeHistogram(const int bins, const double binWidth, const std::string& fileName, const std::vector<double>& finalHistogram) const;
 
     void packDataAndSendIt(const std::set<int>& data, const int destinationProc) const;
-    void receiveData(std::vector<int>& data, int& numOfElements, const int sendingProc) const;
+    void receiveData(std::vector<std::ptrdiff_t>& data, int& numOfElements, const int sendingProc) const;
 
     // Implementation helpers.
     void printConsecutiveIds(const std::map<std::ptrdiff_t, std::ptrdiff_t>& consecutiveLocalIds);

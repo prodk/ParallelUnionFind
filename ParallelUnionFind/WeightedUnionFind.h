@@ -7,9 +7,13 @@
 #include <vector>
 #include <set>
 #include <map>
-#include <cstddef> // For ptrdiff_t.
-                   // ptrdiff_t is necessary for huge systems. It works even when the integer value exceeds INT_MAX = 2^32.
-                   // This might happen for the 64-bit JUQUEEN and huge systems.
+#include <cstddef>    // For ptrdiff_t.
+                      // ptrdiff_t is necessary for huge systems. It works even when the integer value exceeds INT_MAX = 2^32.
+                      // This might happen for the 64-bit JUQUEEN and huge systems.
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <limits>     // std::numeric_limits<> for gcc
 
 //---------------------------------------------------------------------------
 struct Pixel

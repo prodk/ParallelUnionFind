@@ -5,10 +5,10 @@
 
 //---------------------------------------------------------------------------
 SendColumnStrategy::SendColumnStrategy(const DecompositionInfo & decompositionInfo,
-                                       const std::vector<int> & localPixels,
+                                       const std::vector<std::ptrdiff_t> & localPixels,
                                        const std::vector<Pixel> & globalPixels,
                                        const std::tr1::shared_ptr<WeightedUnionFind> & localWuf,
-                                       std::map<int, int> & globalLabels)
+                                       std::map<std::ptrdiff_t, std::ptrdiff_t> & globalLabels)
     : mDecompositionInfo(decompositionInfo)
     , mLocalPixels(localPixels)
     , mGlobalPixels(globalPixels)

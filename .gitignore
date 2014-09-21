@@ -1,5 +1,7 @@
 *Debug/
 ParallelUnionFind/Release
+Release/ParallelUnionFind
+/doc/
 *ipch*
 *sdf
 *.ncb
@@ -8,3 +10,4 @@ ParallelUnionFind/Release
 *.pdb
 *.png
 *.exe
+*.o

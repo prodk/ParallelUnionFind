@@ -1,25 +1,3 @@
-# Input file for the testing client of the ParallelUnionFind code.
-#..\test\8by8_contact.dat                 # 1. Picture file
-#..\test\8by8_noncontact.dat              # 1. Picture file
-#..\test\8by8_1vertical_stripe_side.dat   # 1. Picture file
-#..\test\8by8_1vertical_stripe_center.dat # 1. Picture file
-#..\test\8by8_2vertical_stripes.dat       # 1. Picture file
-#..\test\8by8_1horiz_stripe.dat           # 1. Picture file
-#..\test\8by8_checkerbrd4.dat             # 1. Picture file
-#..\test\8by8_square.dat                  # 1. Picture file
-#8                                        # 2. System size (a square geometry is assumed)
-
-#..\test\picture_H08_4a_256_p_0_1.dat     # 1. Picture file
-#256                                      # 2. System size (a square geometry is assumed)
-
-#..\test\picture_H08_4a_1k_p_0_1.dat      # 1. Picture file
-#1024                                     # 2. System size (a square geometry is assumed)
-
-#..\test\picture_H03_2a_4k_p_0_035.dat    # 1. Picture file
-#4096                                     # 2. System size (a square geometry is assumed)
-
-#..\test\picture_H03_4a_8k_p_0_035.dat    # 1. Picture file
-#8192                                     # 2. System size (a square geometry is assumed)
-
+..\test\picture_H08_4a_256_p_0_1.dat     # 1. Picture file
+256                                      # 2. System size (a square geometry is assumed)
 1                                # 3. Number of bins in the cluster size histogram. Use 1 to avoid printing the histogram.
-# TODO: add periodic boundary conditions in the horizontal direction.
