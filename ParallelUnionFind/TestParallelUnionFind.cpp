@@ -63,15 +63,15 @@ void TestParallelUnionFind::readInputParameters()
                 {
                 case 0:       // mPictureFile
                     mPictureFile = paramLine;
-                    std::cout << "Picture file " << mPictureFile << std::endl; // TODO: remove from release
+                    //std::cout << "Picture file " << mPictureFile << std::endl; // TODO: remove from release
                     break;
                 case 1:       // mSystemSize
                     saveInteger(mSystemSize, paramLine);
-                    std::cout << "System size " << mSystemSize << std::endl;   // TODO: remove from release
+                    //std::cout << "System size " << mSystemSize << std::endl;   // TODO: remove from release
                     break;
                 case 2:
                     saveInteger(mNumOfBins, paramLine);
-                    std::cout << "Bins " << mNumOfBins << std::endl;           // TODO: remove from release
+                    //std::cout << "Bins " << mNumOfBins << std::endl;           // TODO: remove from release
                     break;    // mNumOfBins
                 }
                 ++paramCount;
